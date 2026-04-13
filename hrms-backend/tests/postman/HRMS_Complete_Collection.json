@@ -1,0 +1,806 @@
+{
+  "info": {
+    "name": "University HRMS — Complete API Collection",
+    "_postman_id": "hrms-thesis-2025",
+    "description": "Complete Postman collection for the University HR Management System.\n\nSETUP:\n1. Set {{baseUrl}} = http://localhost:3000/api/v1\n2. Run 'Login' request first — token is saved automatically to {{token}}\n3. All subsequent requests use Bearer {{token}} automatically\n\nMODULES COVERED:\n- Auth (Login, Refresh, Me, Change Password)\n- Employee Profile (CRUD, Change Requests, Org Chart, Salary, Audit)\n- Time & Attendance (Clock In/Out, Dashboard, Corrections, Overtime, Shifts, Summary)\n- Leave Management (Types, Policies, Balances, Submit/Approve/Cancel Requests, Holidays)\n- Payroll (Config, Runs, Process, Approve, Finalize, Payslips, Exceptions, Bank Files)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api/v1" },
+    { "key": "token", "value": "" },
+    { "key": "employeeId", "value": "1" },
+    { "key": "attendanceId", "value": "1" },
+    { "key": "leaveRequestId", "value": "1" },
+    { "key": "payrollRunId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "var json = pm.response.json();",
+            "if (json.success && json.data.accessToken) {",
+            "  pm.collectionVariables.set('token', json.data.accessToken);",
+            "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+            "  console.log('Token saved for: ' + json.data.employee.name + ' [' + json.data.employee.role + ']');",
+            "}",
+            "pm.test('Login successful', () => pm.response.to.have.status(200));",
+            "pm.test('Has access token', () => pm.expect(json.data).to.have.property('accessToken'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth","login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"sarah.johnson@university.edu\",\n  \"password\": \"HRMSPass123!\"\n}" }
+          }
+        },
+        {
+          "name": "Login — FAIL: Wrong Password",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 401', () => pm.response.to.have.status(401));",
+            "pm.test('Error code INVALID_CREDENTIALS', () => pm.expect(pm.response.json().error.code).to.eql('INVALID_CREDENTIALS'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth","login"] },
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"sarah.johnson@university.edu\",\n  \"password\": \"WrongPassword!\"\n}" }
+          }
+        },
+        {
+          "name": "Get Current User (me)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth","me"] }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "var json = pm.response.json();",
+            "if (json.success) pm.collectionVariables.set('token', json.data.accessToken);",
+            "pm.test('Token refreshed', () => pm.response.to.have.status(200));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth","refresh"] },
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/auth/change-password", "host": ["{{baseUrl}}"], "path": ["auth","change-password"] },
+            "body": { "mode": "raw", "raw": "{\n  \"currentPassword\": \"HRMSPass123!\",\n  \"newPassword\": \"NewSecure456!\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Employee Profile",
+      "item": [
+        {
+          "name": "Get My Profile (Self-Service)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "var d = pm.response.json().data;",
+            "pm.test('Has EmployeeCode', () => pm.expect(d).to.have.property('EmployeeCode'));",
+            "pm.test('Has Department', () => pm.expect(d).to.have.property('Department'));",
+            "pm.test('Has Position', () => pm.expect(d).to.have.property('Position'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/employees/me", "host": ["{{baseUrl}}"], "path": ["employees","me"] }
+          }
+        },
+        {
+          "name": "List All Employees (HR/Manager)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Has pagination meta', () => pm.expect(pm.response.json()).to.have.property('meta'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/employees?page=1&limit=10&status=Active",
+              "host": ["{{baseUrl}}"], "path": ["employees"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "status", "value": "Active" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Employees — Search by Name",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/employees?search=Johnson&departmentId=1",
+              "host": ["{{baseUrl}}"], "path": ["employees"],
+              "query": [{ "key": "search", "value": "Johnson" }, { "key": "departmentId", "value": "1" }]
+            }
+          }
+        },
+        {
+          "name": "Create Employee (HR/Admin)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "var d = pm.response.json().data;",
+            "if (d.EmployeeID) pm.collectionVariables.set('employeeId', d.EmployeeID);"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/employees", "host": ["{{baseUrl}}"], "path": ["employees"] },
+            "body": { "mode": "raw", "raw": "{\n  \"EmployeeCode\": \"EMP002\",\n  \"FirstName\": \"Ahmed\",\n  \"LastName\": \"Hassan\",\n  \"DateOfBirth\": \"1990-05-15\",\n  \"Gender\": \"Male\",\n  \"Nationality\": \"Egyptian\",\n  \"MaritalStatus\": \"Single\",\n  \"Email\": \"ahmed.hassan@university.edu\",\n  \"Phone\": \"+20-10-1234-5678\",\n  \"Address\": \"15 Tahrir Square, Cairo\",\n  \"DepartmentID\": 1,\n  \"PositionID\": 2,\n  \"EmploymentType\": \"Full-Time\",\n  \"StartDate\": \"2024-01-01\",\n  \"WorkLocationID\": 1\n}" }
+          }
+        },
+        {
+          "name": "Create Employee — FAIL: Duplicate Email",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));",
+            "pm.test('Error is DUPLICATE_ENTRY', () => pm.expect(pm.response.json().error.code).to.eql('DUPLICATE_ENTRY'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/employees", "host": ["{{baseUrl}}"], "path": ["employees"] },
+            "body": { "mode": "raw", "raw": "{\n  \"EmployeeCode\": \"EMP099\",\n  \"FirstName\": \"Test\",\n  \"LastName\": \"Duplicate\",\n  \"DateOfBirth\": \"1990-01-01\",\n  \"Gender\": \"Male\",\n  \"Nationality\": \"Egyptian\",\n  \"MaritalStatus\": \"Single\",\n  \"Email\": \"sarah.johnson@university.edu\",\n  \"DepartmentID\": 1,\n  \"PositionID\": 1,\n  \"EmploymentType\": \"Full-Time\",\n  \"StartDate\": \"2024-01-01\",\n  \"WorkLocationID\": 1\n}" }
+          }
+        },
+        {
+          "name": "Get Employee by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/employees/{{employeeId}}", "host": ["{{baseUrl}}"], "path": ["employees","{{employeeId}}"] }
+          }
+        },
+        {
+          "name": "Update Employee (HR/Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/employees/{{employeeId}}", "host": ["{{baseUrl}}"], "path": ["employees","{{employeeId}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"Phone\": \"+20-11-9876-5432\",\n  \"Address\": \"Updated: 22 Corniche Road, Alexandria\"\n}" }
+          }
+        },
+        {
+          "name": "Submit Change Request (Self-Service Edit Request button)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "var d = pm.response.json().data;",
+            "if (d.ChangeRequestID) pm.collectionVariables.set('changeRequestId', d.ChangeRequestID);"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/employees/{{employeeId}}/change-requests", "host": ["{{baseUrl}}"], "path": ["employees","{{employeeId}}","change-requests"] },
+            "body": { "mode": "raw", "raw": "{\n  \"FieldName\": \"Phone\",\n  \"NewValue\": \"+20-10-0000-1111\"\n}" }
+          }
+        },
+        {
+          "name": "My Change Requests (Requests tab)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/employees/me/change-requests", "host": ["{{baseUrl}}"], "path": ["employees","me","change-requests"] }
+          }
+        },
+        {
+          "name": "Review Change Request (HR Approve)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/employees/change-requests/{{changeRequestId}}", "host": ["{{baseUrl}}"], "path": ["employees","change-requests","{{changeRequestId}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"Status\": \"Approved\",\n  \"ReviewNote\": \"Verified and approved.\"\n}" }
+          }
+        },
+        {
+          "name": "Set Employee Salary",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/employees/{{employeeId}}/salary", "host": ["{{baseUrl}}"], "path": ["employees","{{employeeId}}","salary"] },
+            "body": { "mode": "raw", "raw": "{\n  \"PayGradeID\": 1,\n  \"BaseSalary\": 15000.00,\n  \"CurrencyCode\": \"EGP\",\n  \"EffectiveFrom\": \"2025-01-01\",\n  \"ChangeReason\": \"Annual increment\"\n}" }
+          }
+        },
+        {
+          "name": "Get Org Chart",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/employees/{{employeeId}}/org-chart", "host": ["{{baseUrl}}"], "path": ["employees","{{employeeId}}","org-chart"] }
+          }
+        },
+        {
+          "name": "Get Audit Log",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/employees/{{employeeId}}/audit?page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["employees","{{employeeId}}","audit"] }
+          }
+        },
+        {
+          "name": "Terminate Employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/employees/{{employeeId}}/terminate", "host": ["{{baseUrl}}"], "path": ["employees","{{employeeId}}","terminate"] },
+            "body": { "mode": "raw", "raw": "{\n  \"endDate\": \"2025-12-31\"\n}" }
+          }
+        },
+        {
+          "name": "List Departments",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/employees/departments", "host": ["{{baseUrl}}"], "path": ["employees","departments"] }
+          }
+        },
+        {
+          "name": "Create Department",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/employees/departments", "host": ["{{baseUrl}}"], "path": ["employees","departments"] },
+            "body": { "mode": "raw", "raw": "{\n  \"DepartmentCode\": \"DEPT-CS\",\n  \"DepartmentName\": \"Computer Science\",\n  \"ManagerID\": 1\n}" }
+          }
+        },
+        {
+          "name": "Get My Notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/employees/me/notifications?unreadOnly=true", "host": ["{{baseUrl}}"], "path": ["employees","me","notifications"], "query": [{"key":"unreadOnly","value":"true"}] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🕐 Time & Attendance",
+      "item": [
+        {
+          "name": "Get Dashboard KPIs",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "var d = pm.response.json().data;",
+            "pm.test('Has thisWeekHours', () => pm.expect(d).to.have.property('thisWeekHours'));",
+            "pm.test('Has onTimeRate', () => pm.expect(d).to.have.property('onTimeRate'));",
+            "pm.test('Has daysToPayroll', () => pm.expect(d).to.have.property('daysToPayroll'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/attendance/dashboard/kpis", "host": ["{{baseUrl}}"], "path": ["attendance","dashboard","kpis"] }
+          }
+        },
+        {
+          "name": "Get Today Status (Current Status Card)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "var d = pm.response.json().data;",
+            "pm.test('Has currentStatus field', () => pm.expect(d).to.have.property('currentStatus'));",
+            "pm.test('Has todayShift', () => pm.expect(d).to.have.property('todayShift'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/attendance/dashboard/today", "host": ["{{baseUrl}}"], "path": ["attendance","dashboard","today"] }
+          }
+        },
+        {
+          "name": "Clock In (Quick Action button)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "var json = pm.response.json();",
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "if (json.data && json.data.AttendanceID) pm.collectionVariables.set('attendanceId', json.data.AttendanceID);",
+            "pm.test('Has AttendanceID', () => pm.expect(json.data).to.have.property('AttendanceID'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/attendance/check-in", "host": ["{{baseUrl}}"], "path": ["attendance","check-in"] },
+            "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Arrived from off-campus meeting\"\n}" }
+          }
+        },
+        {
+          "name": "Clock In — FAIL: Already Checked In",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));",
+            "pm.test('ALREADY_CHECKED_IN error', () => pm.expect(pm.response.json().error.code).to.eql('ALREADY_CHECKED_IN'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/attendance/check-in", "host": ["{{baseUrl}}"], "path": ["attendance","check-in"] },
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        },
+        {
+          "name": "Clock Out",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "var d = pm.response.json().data;",
+            "pm.test('Has WorkedHours', () => pm.expect(d).to.have.property('WorkedHours'));",
+            "pm.test('WorkedHours > 0', () => pm.expect(Number(d.WorkedHours)).to.be.above(0));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/attendance/check-out", "host": ["{{baseUrl}}"], "path": ["attendance","check-out"] },
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        },
+        {
+          "name": "Get Recent Activity Feed",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/attendance/dashboard/recent-activity?limit=5", "host": ["{{baseUrl}}"], "path": ["attendance","dashboard","recent-activity"], "query": [{"key":"limit","value":"5"}] }
+          }
+        },
+        {
+          "name": "Get Monthly Calendar",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/attendance/calendar/me?year=2025&month=3", "host": ["{{baseUrl}}"], "path": ["attendance","calendar","me"], "query": [{"key":"year","value":"2025"},{"key":"month","value":"3"}] }
+          }
+        },
+        {
+          "name": "Submit Correction Request",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "var d = pm.response.json().data;",
+            "if (d.CorrectionID) pm.collectionVariables.set('correctionId', d.CorrectionID);"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/attendance/{{attendanceId}}/corrections", "host": ["{{baseUrl}}"], "path": ["attendance","{{attendanceId}}","corrections"] },
+            "body": { "mode": "raw", "raw": "{\n  \"CorrectedCheckIn\": \"2025-03-15T08:45:00.000Z\",\n  \"CorrectedCheckOut\": \"2025-03-15T17:05:00.000Z\",\n  \"Reason\": \"System recorded wrong time due to network issue at terminal\"\n}" }
+          }
+        },
+        {
+          "name": "Correction Request — FAIL: No Reason",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 422 Validation Error', () => pm.response.to.have.status(422));",
+            "pm.test('Has field details', () => pm.expect(pm.response.json().error).to.have.property('details'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/attendance/{{attendanceId}}/corrections", "host": ["{{baseUrl}}"], "path": ["attendance","{{attendanceId}}","corrections"] },
+            "body": { "mode": "raw", "raw": "{\n  \"CorrectedCheckIn\": \"2025-03-15T09:00:00.000Z\"\n}" }
+          }
+        },
+        {
+          "name": "List Correction Requests (Manager Inbox)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/attendance/corrections?status=Pending", "host": ["{{baseUrl}}"], "path": ["attendance","corrections"], "query": [{"key":"status","value":"Pending"}] }
+          }
+        },
+        {
+          "name": "Approve Correction Request",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/attendance/corrections/{{correctionId}}", "host": ["{{baseUrl}}"], "path": ["attendance","corrections","{{correctionId}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"Status\": \"Approved\",\n  \"ReviewNote\": \"Verified against access control logs. Correction is accurate.\"\n}" }
+          }
+        },
+        {
+          "name": "Submit Overtime Request",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/attendance/overtime", "host": ["{{baseUrl}}"], "path": ["attendance","overtime"] },
+            "body": { "mode": "raw", "raw": "{\n  \"EmployeeID\": 1,\n  \"OvertimeDate\": \"2025-03-20\",\n  \"EstimatedHours\": 1.5,\n  \"IsNighttime\": false,\n  \"Reason\": \"End-of-semester exam grading deadline\"\n}" }
+          }
+        },
+        {
+          "name": "Overtime — FAIL: Exceeds 2h Limit (Labor Law)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 422', () => pm.response.to.have.status(422));",
+            "pm.test('Overtime limit message', () => { var body = pm.response.json(); pm.expect(body.error.details[0].message).to.include('2'); });"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/attendance/overtime", "host": ["{{baseUrl}}"], "path": ["attendance","overtime"] },
+            "body": { "mode": "raw", "raw": "{\n  \"EmployeeID\": 1,\n  \"OvertimeDate\": \"2025-03-21\",\n  \"EstimatedHours\": 4,\n  \"IsNighttime\": false,\n  \"Reason\": \"This should fail — exceeds legal limit\"\n}" }
+          }
+        },
+        {
+          "name": "Get Attendance Summary (for Payroll)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/attendance/summary/me?year=2025&month=3", "host": ["{{baseUrl}}"], "path": ["attendance","summary","me"], "query": [{"key":"year","value":"2025"},{"key":"month","value":"3"}] }
+          }
+        },
+        {
+          "name": "Assign Shift to Employee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/attendance/shifts/assign", "host": ["{{baseUrl}}"], "path": ["attendance","shifts","assign"] },
+            "body": { "mode": "raw", "raw": "{\n  \"EmployeeID\": 1,\n  \"ShiftID\": 1,\n  \"EffectiveFrom\": \"2025-01-01\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏖️ Leave Management",
+      "item": [
+        {
+          "name": "Get Leave Balance Dashboard",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "var d = pm.response.json().data;",
+            "pm.test('Has balances array', () => pm.expect(d).to.have.property('balances'));",
+            "pm.test('Each balance has RemainingDays', () => { if (d.balances.length > 0) pm.expect(d.balances[0]).to.have.property('remainingDays'); });"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/leave/balances/me?year=2025", "host": ["{{baseUrl}}"], "path": ["leave","balances","me"], "query": [{"key":"year","value":"2025"}] }
+          }
+        },
+        {
+          "name": "Submit Leave Request",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "var d = pm.response.json().data;",
+            "if (d.LeaveRequestID) pm.collectionVariables.set('leaveRequestId', d.LeaveRequestID);",
+            "pm.test('Status is Submitted or PendingManager', () => pm.expect(['Submitted','PendingManager']).to.include(d.Status));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/leave/requests", "host": ["{{baseUrl}}"], "path": ["leave","requests"] },
+            "body": { "mode": "raw", "raw": "{\n  \"LeaveTypeID\": 1,\n  \"StartDate\": \"2025-04-10\",\n  \"EndDate\": \"2025-04-14\",\n  \"IsHalfDay\": false,\n  \"Reason\": \"Annual family vacation\"\n}" }
+          }
+        },
+        {
+          "name": "Submit Leave — FAIL: Insufficient Balance",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));",
+            "pm.test('INSUFFICIENT_BALANCE error', () => pm.expect(pm.response.json().error.code).to.eql('INSUFFICIENT_BALANCE'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/leave/requests", "host": ["{{baseUrl}}"], "path": ["leave","requests"] },
+            "body": { "mode": "raw", "raw": "{\n  \"LeaveTypeID\": 1,\n  \"StartDate\": \"2025-05-01\",\n  \"EndDate\": \"2025-06-30\",\n  \"Reason\": \"This should fail — too many days requested\"\n}" }
+          }
+        },
+        {
+          "name": "Submit Half-Day Leave",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/leave/requests", "host": ["{{baseUrl}}"], "path": ["leave","requests"] },
+            "body": { "mode": "raw", "raw": "{\n  \"LeaveTypeID\": 1,\n  \"StartDate\": \"2025-04-20\",\n  \"EndDate\": \"2025-04-20\",\n  \"IsHalfDay\": true,\n  \"HalfDayPortion\": \"Morning\",\n  \"Reason\": \"Medical appointment in the morning\"\n}" }
+          }
+        },
+        {
+          "name": "Get My Leave Requests (Leave History tab)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/leave/requests/me?page=1&limit=10", "host": ["{{baseUrl}}"], "path": ["leave","requests","me"] }
+          }
+        },
+        {
+          "name": "Get Leave Request by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/leave/requests/{{leaveRequestId}}", "host": ["{{baseUrl}}"], "path": ["leave","requests","{{leaveRequestId}}"] }
+          }
+        },
+        {
+          "name": "Manager Inbox (Pending Approvals)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/leave/requests/manager-inbox", "host": ["{{baseUrl}}"], "path": ["leave","requests","manager-inbox"] }
+          }
+        },
+        {
+          "name": "Approve Leave (Manager → Step 1)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "var d = pm.response.json().data.leaveRequest;",
+            "pm.test('Status advanced', () => pm.expect(['PendingHR','Approved']).to.include(d.Status));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/leave/requests/{{leaveRequestId}}/approve", "host": ["{{baseUrl}}"], "path": ["leave","requests","{{leaveRequestId}}","approve"] },
+            "body": { "mode": "raw", "raw": "{\n  \"Decision\": \"Approved\",\n  \"Comments\": \"Approved — coverage arranged with Dr. Smith.\"\n}" }
+          }
+        },
+        {
+          "name": "Reject Leave Request",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/leave/requests/{{leaveRequestId}}/approve", "host": ["{{baseUrl}}"], "path": ["leave","requests","{{leaveRequestId}}","approve"] },
+            "body": { "mode": "raw", "raw": "{\n  \"Decision\": \"Rejected\",\n  \"Comments\": \"Rejected — critical project deadline during this period.\"\n}" }
+          }
+        },
+        {
+          "name": "Delegate Approval",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/leave/requests/{{leaveRequestId}}/approve", "host": ["{{baseUrl}}"], "path": ["leave","requests","{{leaveRequestId}}","approve"] },
+            "body": { "mode": "raw", "raw": "{\n  \"Decision\": \"Delegated\",\n  \"DelegatedTo\": 3,\n  \"Comments\": \"On business travel — delegating to Dr. Wilson.\"\n}" }
+          }
+        },
+        {
+          "name": "Cancel Leave Request",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Status is Cancelled', () => pm.expect(pm.response.json().data.Status).to.eql('Cancelled'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/leave/requests/{{leaveRequestId}}/cancel", "host": ["{{baseUrl}}"], "path": ["leave","requests","{{leaveRequestId}}","cancel"] },
+            "body": { "mode": "raw", "raw": "{\n  \"CancelReason\": \"Plans changed — will not take leave after all.\"\n}" }
+          }
+        },
+        {
+          "name": "Adjust Leave Balance (HR)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/leave/balances/adjust", "host": ["{{baseUrl}}"], "path": ["leave","balances","adjust"] },
+            "body": { "mode": "raw", "raw": "{\n  \"EmployeeID\": 1,\n  \"LeaveTypeID\": 1,\n  \"BalanceYear\": 2025,\n  \"AdjustmentDays\": 2,\n  \"Reason\": \"Compensation for working on public holiday\"\n}" }
+          }
+        },
+        {
+          "name": "Adjust Balance — FAIL: Missing Reason",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 422', () => pm.response.to.have.status(422));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/leave/balances/adjust", "host": ["{{baseUrl}}"], "path": ["leave","balances","adjust"] },
+            "body": { "mode": "raw", "raw": "{\n  \"EmployeeID\": 1,\n  \"LeaveTypeID\": 1,\n  \"BalanceYear\": 2025,\n  \"AdjustmentDays\": 2\n}" }
+          }
+        },
+        {
+          "name": "List Leave Types",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/leave/types", "host": ["{{baseUrl}}"], "path": ["leave","types"] }
+          }
+        },
+        {
+          "name": "Create Leave Type",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/leave/types", "host": ["{{baseUrl}}"], "path": ["leave","types"] },
+            "body": { "mode": "raw", "raw": "{\n  \"LeaveTypeCode\": \"ANNUAL\",\n  \"LeaveTypeName\": \"Annual Leave\",\n  \"IsPaid\": true,\n  \"RequiresApproval\": true,\n  \"RequiresDocument\": false,\n  \"DisplayColor\": \"#3B82F6\"\n}" }
+          }
+        },
+        {
+          "name": "Get Holiday Calendar",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/leave/holidays?year=2025", "host": ["{{baseUrl}}"], "path": ["leave","holidays"], "query": [{"key":"year","value":"2025"}] }
+          }
+        },
+        {
+          "name": "Create Holiday",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/leave/holidays", "host": ["{{baseUrl}}"], "path": ["leave","holidays"] },
+            "body": { "mode": "raw", "raw": "{\n  \"HolidayName\": \"Eid Al-Fitr\",\n  \"HolidayDate\": \"2025-03-30\",\n  \"IsRecurringYearly\": false,\n  \"PayMultiplier\": 3.0\n}" }
+          }
+        },
+        {
+          "name": "Leave Analytics (HR)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/leave/analytics?year=2025&departmentId=1", "host": ["{{baseUrl}}"], "path": ["leave","analytics"], "query": [{"key":"year","value":"2025"},{"key":"departmentId","value":"1"}] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "💰 Payroll",
+      "item": [
+        {
+          "name": "Get Payroll Dashboard",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "var d = pm.response.json().data;",
+            "pm.test('Has totalPayrollRuns', () => pm.expect(d).to.have.property('totalPayrollRuns'));",
+            "pm.test('Has activeExceptions', () => pm.expect(d).to.have.property('activeExceptions'));",
+            "pm.test('Has totalPayrollValue', () => pm.expect(d).to.have.property('totalPayrollValue'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/payroll/dashboard", "host": ["{{baseUrl}}"], "path": ["payroll","dashboard"] }
+          }
+        },
+        {
+          "name": "List Pay Grades",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/payroll/pay-grades", "host": ["{{baseUrl}}"], "path": ["payroll","pay-grades"] }
+          }
+        },
+        {
+          "name": "Create Pay Grade",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/payroll/pay-grades", "host": ["{{baseUrl}}"], "path": ["payroll","pay-grades"] },
+            "body": { "mode": "raw", "raw": "{\n  \"GradeCode\": \"G-PROF\",\n  \"GradeName\": \"Professor Grade\",\n  \"MinSalary\": 20000.00,\n  \"MaxSalary\": 50000.00,\n  \"CurrencyCode\": \"EGP\"\n}" }
+          }
+        },
+        {
+          "name": "List Payroll Policies",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/payroll/policies", "host": ["{{baseUrl}}"], "path": ["payroll","policies"] }
+          }
+        },
+        {
+          "name": "Create Payroll Policy",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/payroll/policies", "host": ["{{baseUrl}}"], "path": ["payroll","policies"] },
+            "body": { "mode": "raw", "raw": "{\n  \"PolicyName\": \"University Standard Monthly Payroll 2025\",\n  \"PayPeriod\": \"Monthly\",\n  \"CutoffDay\": 25,\n  \"PaymentDay\": 1,\n  \"TaxCalculationMethod\": \"Standard\",\n  \"MaxMonthlyDeductionDays\": 5,\n  \"MinimumWageEGP\": 6000.00,\n  \"AnnualIncrementRatePct\": 3.0\n}" }
+          }
+        },
+        {
+          "name": "Create Payroll Run",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "var d = pm.response.json().data;",
+            "if (d.PayrollRunID) pm.collectionVariables.set('payrollRunId', d.PayrollRunID);",
+            "pm.test('Status is Draft', () => pm.expect(d.Status).to.eql('Draft'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/payroll/runs", "host": ["{{baseUrl}}"], "path": ["payroll","runs"] },
+            "body": { "mode": "raw", "raw": "{\n  \"PolicyID\": 1,\n  \"PeriodYear\": 2025,\n  \"PeriodMonth\": 3,\n  \"PeriodStartDate\": \"2025-03-01\",\n  \"PeriodEndDate\": \"2025-03-31\",\n  \"CutoffDate\": \"2025-03-25\",\n  \"PaymentDate\": \"2025-04-01\"\n}" }
+          }
+        },
+        {
+          "name": "Process Payroll Run (Calculate All Salaries)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "var d = pm.response.json().data;",
+            "pm.test('Status is PendingApproval', () => pm.expect(d.Status).to.eql('PendingApproval'));",
+            "pm.test('TotalEmployees > 0', () => pm.expect(d.TotalEmployees).to.be.above(0));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/payroll/runs/{{payrollRunId}}/process", "host": ["{{baseUrl}}"], "path": ["payroll","runs","{{payrollRunId}}","process"] },
+            "body": { "mode": "raw", "raw": "{\n  \"employeeIds\": null,\n  \"regenerateSummaries\": true\n}" }
+          }
+        },
+        {
+          "name": "Get Payroll Run Details",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/payroll/runs/{{payrollRunId}}", "host": ["{{baseUrl}}"], "path": ["payroll","runs","{{payrollRunId}}"] }
+          }
+        },
+        {
+          "name": "Approve Payroll Run (HR)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Status is Approved', () => pm.expect(pm.response.json().data.Status).to.eql('Approved'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/payroll/runs/{{payrollRunId}}/approve", "host": ["{{baseUrl}}"], "path": ["payroll","runs","{{payrollRunId}}","approve"] },
+            "body": { "mode": "raw", "raw": "{\n  \"comments\": \"All entries reviewed and verified. Approved for finalization.\"\n}" }
+          }
+        },
+        {
+          "name": "Finalize Payroll Run",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Status is Finalized', () => pm.expect(pm.response.json().data.Status).to.eql('Finalized'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/payroll/runs/{{payrollRunId}}/finalize", "host": ["{{baseUrl}}"], "path": ["payroll","runs","{{payrollRunId}}","finalize"] }
+          }
+        },
+        {
+          "name": "Generate Payslips",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Has payslipsGenerated count', () => pm.expect(pm.response.json().data).to.have.property('payslipsGenerated'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/payroll/runs/{{payrollRunId}}/payslips", "host": ["{{baseUrl}}"], "path": ["payroll","runs","{{payrollRunId}}","payslips"] }
+          }
+        },
+        {
+          "name": "Get My Payslips (Employee Portal)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "var d = pm.response.json();",
+            "pm.test('Has payslips array', () => pm.expect(d.data).to.be.an('array'));",
+            "pm.test('Has pagination meta', () => pm.expect(d).to.have.property('meta'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/payroll/payslips/me?page=1&limit=12", "host": ["{{baseUrl}}"], "path": ["payroll","payslips","me"] }
+          }
+        },
+        {
+          "name": "List Open Exceptions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/payroll/exceptions?status=Open", "host": ["{{baseUrl}}"], "path": ["payroll","exceptions"], "query": [{"key":"status","value":"Open"}] }
+          }
+        },
+        {
+          "name": "Resolve Exception",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/payroll/exceptions/1/resolve", "host": ["{{baseUrl}}"], "path": ["payroll","exceptions","1","resolve"] },
+            "body": { "mode": "raw", "raw": "{\n  \"Status\": \"Resolved\",\n  \"ResolutionNotes\": \"Manually verified salary record and confirmed amount is correct.\"\n}" }
+          }
+        },
+        {
+          "name": "Generate Bank File",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "pm.test('Has FileURL', () => pm.expect(pm.response.json().data).to.have.property('FileURL'));"
+          ], "type": "text/javascript" }}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/payroll/runs/{{payrollRunId}}/bank-file", "host": ["{{baseUrl}}"], "path": ["payroll","runs","{{payrollRunId}}","bank-file"] },
+            "body": { "mode": "raw", "raw": "{\n  \"FileFormat\": \"EGP_BANK_CSV\"\n}" }
+          }
+        }
+      ]
+    }
+  ]
+}

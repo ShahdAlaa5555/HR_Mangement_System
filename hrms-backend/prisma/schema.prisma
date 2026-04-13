@@ -1,0 +1,774 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  DepartmentID   Int        @id(map: "PK__Departme__B2079BCDD16BD357") @default(autoincrement())
+  DepartmentCode String     @unique(map: "UQ__Departme__6EA8896DBB16E819") @db.NVarChar(20)
+  DepartmentName String     @db.NVarChar(100)
+  ManagerID      Int?
+  IsActive       Boolean    @default(true, map: "DF__Departmen__IsAct__38996AB5")
+  CreatedAt      DateTime   @default(dbgenerated("getutcdate()"), map: "DF__Departmen__Creat__398D8EEE")
+  UpdatedAt      DateTime   @default(dbgenerated("getutcdate()"), map: "DF__Departmen__Updat__3A81B327")
+  Manager        Employee?  @relation("DepartmentManager", fields: [ManagerID], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK_Department_Manager")
+  Employees      Employee[] @relation("EmployeeDepartment")
+}
+
+model Position {
+  PositionID    Int        @id(map: "PK__Position__60BB9A59D2E3308A") @default(autoincrement())
+  PositionCode  String     @unique(map: "UQ__Position__83745B0227E10275") @db.NVarChar(20)
+  PositionTitle String     @db.NVarChar(100)
+  PayGradeID    Int?
+  IsActive      Boolean    @default(true, map: "DF__Position__IsActi__3E52440B")
+  CreatedAt     DateTime   @default(dbgenerated("getutcdate()"), map: "DF__Position__Create__3F466844")
+  UpdatedAt     DateTime   @default(dbgenerated("getutcdate()"), map: "DF__Position__Update__403A8C7D")
+  Employees     Employee[]
+  PayGrade      PayGrade?  @relation(fields: [PayGradeID], references: [PayGradeID], onDelete: NoAction, onUpdate: NoAction, map: "FK_Position_PayGrade")
+}
+
+model WorkLocation {
+  WorkLocationID   Int               @id(map: "PK__WorkLoca__0D3898DF851F8157") @default(autoincrement())
+  LocationCode     String            @unique(map: "UQ__WorkLoca__DDB144D528C4AB37") @db.NVarChar(20)
+  LocationName     String            @db.NVarChar(100)
+  Address          String?           @db.NVarChar(250)
+  City             String?           @db.NVarChar(80)
+  Country          String?           @db.NVarChar(80)
+  TimezoneID       String?           @db.NVarChar(60)
+  IsActive         Boolean           @default(true, map: "DF__WorkLocat__IsAct__440B1D61")
+  CreatedAt        DateTime          @default(dbgenerated("getutcdate()"), map: "DF__WorkLocat__Creat__44FF419A")
+  Employees        Employee[]
+  HolidayCalendars HolidayCalendar[]
+}
+
+model Employee {
+  EmployeeID              Int                           @id(map: "PK__Employee__7AD04FF172582FE2") @default(autoincrement())
+  EmployeeCode            String                        @unique(map: "UQ__Employee__1F64254854F61202") @db.NVarChar(20)
+  FullName                String                        @db.NVarChar(150)
+  FirstName               String                        @db.NVarChar(80)
+  LastName                String                        @db.NVarChar(80)
+  DateOfBirth             DateTime                      @db.Date
+  Gender                  String                        @db.NVarChar(20)
+  Nationality             String                        @db.NVarChar(80)
+  MaritalStatus           String                        @db.NVarChar(30)
+  Email                   String                        @unique(map: "UQ__Employee__A9D105345F6E208C") @db.NVarChar(150)
+  Phone                   String?                       @db.NVarChar(30)
+  Address                 String?                       @db.NVarChar(250)
+  Bio                     String?                       @db.NVarChar(Max)
+  PhotoURL                String?                       @db.NVarChar(300)
+  DepartmentID            Int
+  PositionID              Int
+  EmploymentType          String                        @db.NVarChar(50)
+  StartDate               DateTime                      @db.Date
+  EndDate                 DateTime?                     @db.Date
+  SupervisorID            Int?
+  WorkLocationID          Int
+  CurrentStatus           String                        @default("Active", map: "DF__Employee__Curren__5070F446") @db.NVarChar(30)
+  IsActive                Boolean                       @default(true, map: "DF__Employee__IsActi__52593CB8")
+  CreatedAt               DateTime                      @default(dbgenerated("getutcdate()"), map: "DF__Employee__Create__534D60F1")
+  UpdatedAt               DateTime                      @default(dbgenerated("getutcdate()"), map: "DF__Employee__Update__5441852A")
+  HasDisability           Boolean                       @default(false, map: "DF__Employee__HasDis__11D4A34F")
+  AttendanceCorrections   AttendanceCorrectionRequest[] @relation("CorrectionEmployee")
+  CorrectionReviewedBy    AttendanceCorrectionRequest[] @relation("CorrectionReviewer")
+  AttendanceRecords       AttendanceRecord[]
+  AttendanceSummaries     AttendanceSummary[]
+  BankFilesGenerated      BankFile[]                    @relation("BankFileGenerator")
+  ManagedDepartments      Department[]                  @relation("DepartmentManager")
+  Department              Department                    @relation("EmployeeDepartment", fields: [DepartmentID], references: [DepartmentID], onUpdate: NoAction, map: "FK__Employee__Depart__4BAC3F29")
+  Position                Position                      @relation(fields: [PositionID], references: [PositionID], onUpdate: NoAction, map: "FK__Employee__Positi__4CA06362")
+  Supervisor              Employee?                     @relation("EmployeeSupervisor", fields: [SupervisorID], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Employee__Superv__4E88ABD4")
+  Subordinates            Employee[]                    @relation("EmployeeSupervisor")
+  WorkLocation            WorkLocation                  @relation(fields: [WorkLocationID], references: [WorkLocationID], onUpdate: NoAction, map: "FK__Employee__WorkLo__4F7CD00D")
+  EmployeeAllowances      EmployeeAllowance[]
+  AuditLogsBy             EmployeeAuditLog[]            @relation("AuditChanger")
+  AuditLogsFor            EmployeeAuditLog[]            @relation("AuditEmployee")
+  BankAccounts            EmployeeBankAccount[]
+  ChangeRequests          EmployeeChangeRequest[]       @relation("ChangeRequestEmployee")
+  ChangeRequestsBy        EmployeeChangeRequest[]       @relation("ChangeRequestedBy")
+  ChangeRequestReviews    EmployeeChangeRequest[]       @relation("ChangeRequestReviewer")
+  MedicalExams            EmployeeMedicalExam[]         @relation("MedicalExamEmployee")
+  MedicalExamsRecorded    EmployeeMedicalExam[]         @relation("MedicalExamRecorder")
+  SalaryApprovals         EmployeeSalary[]              @relation("EmployeeSalaryApprover")
+  Salaries                EmployeeSalary[]              @relation("EmployeeSalaryEmployee")
+  ShiftAssignedBy         EmployeeShiftAssignment[]     @relation("ShiftAssignedByEmployee")
+  ShiftAssignments        EmployeeShiftAssignment[]     @relation("ShiftAssignmentEmployee")
+  SpecialStatuses         EmployeeSpecialStatus[]
+  LeaveActionLogs         LeaveActionLog[]
+  LeaveApprovals          LeaveApproval[]               @relation("LeaveApprover")
+  DelegatedApprovals      LeaveApproval[]               @relation("DelegatedApprover")
+  LeaveBalances           LeaveBalance[]
+  CancelledLeaves         LeaveRequest[]                @relation("LeaveCancelledBy")
+  LeaveRequests           LeaveRequest[]                @relation("LeaveEmployee")
+  Notifications           Notification[]
+  OvertimeApprovedBy      OvertimeRequest[]             @relation("OvertimeApprover")
+  OvertimeRequests        OvertimeRequest[]             @relation("OvertimeEmployee")
+  OvertimeRequestedBy     OvertimeRequest[]             @relation("OvertimeRequestedBy")
+  PayrollEntries          PayrollEntry[]
+  PayrollExceptions       PayrollException[]            @relation("ExceptionEmployee")
+  ExceptionResolutions    PayrollException[]            @relation("ExceptionResolver")
+  PayrollPoliciesApproved PayrollPolicy[]               @relation("PolicyApprover")
+  PayrollRunsApproved     PayrollRun[]                  @relation("PayrollApprover")
+  PayrollRunsProcessed    PayrollRun[]                  @relation("PayrollProcessor")
+  Payslips                Payslip[]
+  Credential              UserCredential?
+
+  @@index([EmployeeCode], map: "IX_Employee_Code")
+  @@index([DepartmentID], map: "IX_Employee_Department")
+  @@index([PositionID], map: "IX_Employee_Position")
+  @@index([SupervisorID], map: "IX_Employee_Supervisor")
+  @@index([WorkLocationID], map: "IX_Employee_WorkLocation")
+}
+
+model UserCredential {
+  CredentialID Int      @id(map: "PK__UserCred__2C58F9ECFA2B843A") @default(autoincrement())
+  EmployeeID   Int      @unique(map: "UQ__UserCred__7AD04FF00D67402C")
+  PasswordHash String   @db.NVarChar(255)
+  IsActive     Boolean  @default(true, map: "DF__UserCrede__IsAct__1975C517")
+  CreatedAt    DateTime @default(dbgenerated("getutcdate()"), map: "DF__UserCrede__Creat__1A69E950")
+  UpdatedAt    DateTime @default(dbgenerated("getutcdate()"), map: "DF__UserCrede__Updat__1B5E0D89")
+  Employee     Employee @relation(fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__UserCrede__Emplo__1881A0DE")
+}
+
+model ShiftDifferential {
+  DifferentialID   Int      @id(map: "PK__ShiftDif__8325BE4A56947732") @default(autoincrement())
+  DifferentialName String   @db.NVarChar(100)
+  Multiplier       Decimal  @default(1.0, map: "DF__ShiftDiff__Multi__76969D2E") @db.Decimal(4, 2)
+  FlatAmount       Decimal  @default(0, map: "DF__ShiftDiff__FlatA__778AC167") @db.Decimal(10, 2)
+  IsActive         Boolean  @default(true, map: "DF__ShiftDiff__IsAct__787EE5A0")
+  CreatedAt        DateTime @default(dbgenerated("getutcdate()"), map: "DF__ShiftDiff__Creat__797309D9")
+  Shifts           Shift[]
+}
+
+model Shift {
+  ShiftID                   Int                       @id(map: "PK__Shift__C0A838E1AF77338A") @default(autoincrement())
+  ShiftCode                 String                    @unique(map: "UQ__Shift__9377D562F1DE0C54") @db.NVarChar(20)
+  ShiftName                 String                    @db.NVarChar(100)
+  StartTime                 DateTime                  @db.Time
+  EndTime                   DateTime                  @db.Time
+  BreakStartTime            DateTime?                 @db.Time
+  BreakDurationMin          Int?
+  ExpectedHours             Decimal                   @db.Decimal(5, 2)
+  IsOvernight               Boolean                   @default(false, map: "DF__Shift__IsOvernig__17036CC0")
+  ShiftDifferentialID       Int?
+  IsActive                  Boolean                   @default(true, map: "DF__Shift__IsActive__17F790F9")
+  MaxWeeklyHours            Int                       @default(48, map: "DF__Shift__MaxWeekly__18EBB532")
+  MaxConsecHoursBeforeBreak Decimal                   @default(4.0, map: "DF__Shift__MaxConsec__19DFD96B") @db.Decimal(4, 2)
+  IsNightShift              Boolean                   @default(false, map: "DF__Shift__IsNightSh__1AD3FDA4")
+  CreatedAt                 DateTime                  @default(dbgenerated("getutcdate()"), map: "DF__Shift__CreatedAt__1BC821DD")
+  AttendanceRecords         AttendanceRecord[]
+  Assignments               EmployeeShiftAssignment[]
+  Differential              ShiftDifferential?        @relation(fields: [ShiftDifferentialID], references: [DifferentialID], onDelete: NoAction, onUpdate: NoAction, map: "FK_Shift_Differential")
+  Restrictions              ShiftRestriction[]
+}
+
+model EmployeeShiftAssignment {
+  AssignmentID       Int       @id(map: "PK__Employee__32499E57B878657B") @default(autoincrement())
+  EmployeeID         Int
+  ShiftID            Int
+  EffectiveFrom      DateTime  @db.Date
+  EffectiveTo        DateTime? @db.Date
+  AssignedBy         Int
+  CreatedAt          DateTime  @default(dbgenerated("getutcdate()"), map: "DF__EmployeeS__Creat__22751F6C")
+  AssignedByEmployee Employee  @relation("ShiftAssignedByEmployee", fields: [AssignedBy], references: [EmployeeID], onUpdate: NoAction, map: "FK__EmployeeS__Assig__2180FB33")
+  Employee           Employee  @relation("ShiftAssignmentEmployee", fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__EmployeeS__Emplo__1F98B2C1")
+  Shift              Shift     @relation(fields: [ShiftID], references: [ShiftID], onUpdate: NoAction, map: "FK__EmployeeS__Shift__208CD6FA")
+}
+
+model AttendanceRecord {
+  AttendanceID      Int                           @id(map: "PK__Attendan__8B69263C4905A129") @default(autoincrement())
+  EmployeeID        Int
+  AttendanceDate    DateTime                      @db.Date
+  ShiftID           Int?
+  CheckInTime       DateTime?
+  CheckOutTime      DateTime?
+  WorkedHours       Decimal?                      @db.Decimal(5, 2)
+  OvertimeHours     Decimal                       @default(0, map: "DF__Attendanc__Overt__282DF8C2") @db.Decimal(5, 2)
+  LatenessMinutes   Int                           @default(0, map: "DF__Attendanc__Laten__29221CFB")
+  EarlyDepartureMin Int                           @default(0, map: "DF__Attendanc__Early__2A164134")
+  Status            String                        @default("Present", map: "DF__Attendanc__Statu__2B0A656D") @db.NVarChar(30)
+  LeaveRequestID    Int?
+  IsManualEntry     Boolean                       @default(false, map: "DF__Attendanc__IsMan__2CF2ADDF")
+  Notes             String?                       @db.NVarChar(500)
+  CreatedAt         DateTime                      @default(dbgenerated("getutcdate()"), map: "DF__Attendanc__Creat__2DE6D218")
+  UpdatedAt         DateTime                      @default(dbgenerated("getutcdate()"), map: "DF__Attendanc__Updat__2EDAF651")
+  Corrections       AttendanceCorrectionRequest[]
+  Employee          Employee                      @relation(fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__Attendanc__Emplo__2645B050")
+  Shift             Shift?                        @relation(fields: [ShiftID], references: [ShiftID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Attendanc__Shift__2739D489")
+  LeaveRequest      LeaveRequest?                 @relation(fields: [LeaveRequestID], references: [LeaveRequestID], onDelete: NoAction, onUpdate: NoAction, map: "FK_Attendance_LeaveRequest")
+  OvertimeRequests  OvertimeRequest[]
+
+  @@unique([EmployeeID, AttendanceDate], name: "UQ_Attendance_EmployeeDate", map: "UQ_Attendance_EmployeeDate")
+  @@index([AttendanceDate, Status], map: "IX_Attendance_Date_Status")
+  @@index([EmployeeID, AttendanceDate], map: "IX_Attendance_Employee_Date")
+  @@index([LeaveRequestID], map: "IX_Attendance_LeaveRequest")
+}
+
+model AttendanceCorrectionRequest {
+  CorrectionID      Int              @id(map: "PK__Attendan__8154F8279F8E2798") @default(autoincrement())
+  AttendanceID      Int
+  EmployeeID        Int
+  CorrectedCheckIn  DateTime?
+  CorrectedCheckOut DateTime?
+  Reason            String           @db.NVarChar(500)
+  Status            String           @default("Pending", map: "DF__Attendanc__Statu__339FAB6E") @db.NVarChar(30)
+  ReviewedBy        Int?
+  ReviewNote        String?          @db.NVarChar(300)
+  ReviewedAt        DateTime?
+  CreatedAt         DateTime         @default(dbgenerated("getutcdate()"), map: "DF__Attendanc__Creat__367C1819")
+  Attendance        AttendanceRecord @relation(fields: [AttendanceID], references: [AttendanceID], onUpdate: NoAction, map: "FK__Attendanc__Atten__31B762FC")
+  Employee          Employee         @relation("CorrectionEmployee", fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__Attendanc__Emplo__32AB8735")
+  Reviewer          Employee?        @relation("CorrectionReviewer", fields: [ReviewedBy], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK__Attendanc__Revie__3587F3E0")
+}
+
+model AttendanceSummary {
+  SummaryID         Int            @id(map: "PK__Attendan__DAB10E0F8B98A72E") @default(autoincrement())
+  EmployeeID        Int
+  PeriodYear        Int
+  PeriodMonth       Int
+  TotalWorkingDays  Int            @default(0, map: "DF__Attendanc__Total__3C34F16F")
+  PresentDays       Int            @default(0, map: "DF__Attendanc__Prese__3D2915A8")
+  AbsentDays        Int            @default(0, map: "DF__Attendanc__Absen__3E1D39E1")
+  LeaveDays         Int            @default(0, map: "DF__Attendanc__Leave__3F115E1A")
+  HolidayDays       Int            @default(0, map: "DF__Attendanc__Holid__40058253")
+  TotalWorkedHours  Decimal        @default(0, map: "DF__Attendanc__Total__40F9A68C") @db.Decimal(7, 2)
+  TotalOvertimeHrs  Decimal        @default(0, map: "DF__Attendanc__Total__41EDCAC5") @db.Decimal(7, 2)
+  TotalLatenessMins Int            @default(0, map: "DF__Attendanc__Total__42E1EEFE")
+  OnTimeRate        Decimal?       @db.Decimal(5, 2)
+  GeneratedAt       DateTime       @default(dbgenerated("getutcdate()"), map: "DF__Attendanc__Gener__43D61337")
+  Employee          Employee       @relation(fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__Attendanc__Emplo__3A4CA8FD")
+  PayrollEntries    PayrollEntry[]
+
+  @@unique([EmployeeID, PeriodYear, PeriodMonth], name: "UQ_AttSummary_EmpPeriod", map: "UQ_AttSummary_EmpPeriod")
+}
+
+model OvertimeRequest {
+  OvertimeRequestID   Int               @id(map: "PK__Overtime__F97D0DAA5262DBFB") @default(autoincrement())
+  EmployeeID          Int
+  RequestedBy         Int
+  OvertimeDate        DateTime          @db.Date
+  EstimatedHours      Decimal           @db.Decimal(4, 2)
+  IsNighttime         Boolean           @default(false, map: "DF__OvertimeR__IsNig__7814D14C")
+  Reason              String            @db.NVarChar(500)
+  EmployeeNotifiedAt  DateTime?
+  AuthorityNotifiedAt DateTime?
+  Status              String            @default("Pending", map: "DF__OvertimeR__Statu__7908F585") @db.NVarChar(20)
+  ApprovedBy          Int?
+  AttendanceID        Int?
+  CreatedAt           DateTime          @default(dbgenerated("getutcdate()"), map: "DF__OvertimeR__Creat__7CD98669")
+  Approver            Employee?         @relation("OvertimeApprover", fields: [ApprovedBy], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK__OvertimeR__Appro__7AF13DF7")
+  AttendanceRecord    AttendanceRecord? @relation(fields: [AttendanceID], references: [AttendanceID], onDelete: NoAction, onUpdate: NoAction, map: "FK__OvertimeR__Atten__7BE56230")
+  Employee            Employee          @relation("OvertimeEmployee", fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__OvertimeR__Emplo__753864A1")
+  Requester           Employee          @relation("OvertimeRequestedBy", fields: [RequestedBy], references: [EmployeeID], onUpdate: NoAction, map: "FK__OvertimeR__Reque__762C88DA")
+}
+
+model ShiftRestriction {
+  RestrictionID   Int      @id(map: "PK__ShiftRes__529D869AF1507CA8") @default(autoincrement())
+  ShiftID         Int
+  RestrictionType String   @db.NVarChar(30)
+  Description     String?  @db.NVarChar(200)
+  CreatedAt       DateTime @default(dbgenerated("getutcdate()"), map: "DF__ShiftRest__Creat__019E3B86")
+  Shift           Shift    @relation(fields: [ShiftID], references: [ShiftID], onUpdate: NoAction, map: "FK__ShiftRest__Shift__7FB5F314")
+}
+
+model LeaveType {
+  LeaveTypeID      Int            @id(map: "PK__LeaveTyp__43BE8FF4CC5E73CF") @default(autoincrement())
+  LeaveTypeCode    String         @unique(map: "UQ__LeaveTyp__A264FAEEDAC05CF9") @db.NVarChar(20)
+  LeaveTypeName    String         @db.NVarChar(100)
+  IsPaid           Boolean        @default(true, map: "DF__LeaveType__IsPai__47A6A41B")
+  RequiresApproval Boolean        @default(true, map: "DF__LeaveType__Requi__489AC854")
+  RequiresDocument Boolean        @default(false, map: "DF__LeaveType__Requi__498EEC8D")
+  IsActive         Boolean        @default(true, map: "DF__LeaveType__IsAct__4A8310C6")
+  DisplayColor     String?        @db.NVarChar(10)
+  CreatedAt        DateTime       @default(dbgenerated("getutcdate()"), map: "DF__LeaveType__Creat__4B7734FF")
+  ApprovalSteps    ApprovalStep[]
+  Balances         LeaveBalance[]
+  Policies         LeavePolicy[]
+  Requests         LeaveRequest[]
+}
+
+model LeavePolicy {
+  LeavePolicyID                 Int             @id(map: "PK__LeavePol__20E59EB84B9AE93C") @default(autoincrement())
+  PolicyName                    String          @db.NVarChar(100)
+  LeaveTypeID                   Int
+  EmploymentType                String?         @db.NVarChar(50)
+  MaxDaysPerYear                Int
+  AccrualRatePerMonth           Decimal?        @db.Decimal(5, 2)
+  CarryOverLimit                Int             @default(0, map: "DF__LeavePoli__Carry__4F47C5E3")
+  CarryOverYears                Int             @default(2, map: "DF__LeavePoli__Carry__503BEA1C")
+  MinTenureMonths               Int             @default(0, map: "DF__LeavePoli__MinTe__51300E55")
+  NoticePeriodDays              Int             @default(0, map: "DF__LeavePoli__Notic__5224328E")
+  MaxConsecDays                 Int?
+  AllowHalfDay                  Boolean         @default(false, map: "DF__LeavePoli__Allow__531856C7")
+  IsActive                      Boolean         @default(true, map: "DF__LeavePoli__IsAct__540C7B00")
+  EffectiveFrom                 DateTime        @db.Date
+  EffectiveTo                   DateTime?       @db.Date
+  MaxLifetimeOccurrences        Int?
+  AgeTriggerYears               Int?
+  EntitlementCycleYears         Int             @default(1, map: "DF__LeavePoli__Entit__55009F39")
+  FirstYearEntitlementDays      Int?
+  MinPostEventDays              Int?
+  MinGapBetweenOccurrenceMonths Int?
+  CreatedAt                     DateTime        @default(dbgenerated("getutcdate()"), map: "DF__LeavePoli__Creat__55F4C372")
+  LeaveType                     LeaveType       @relation(fields: [LeaveTypeID], references: [LeaveTypeID], onUpdate: NoAction, map: "FK__LeavePoli__Leave__4E53A1AA")
+  SickLeaveTiers                SickLeaveTier[]
+}
+
+model LeaveBalance {
+  LeaveBalanceID      Int       @id(map: "PK__LeaveBal__8A68C4821C7DE7A7") @default(autoincrement())
+  EmployeeID          Int
+  LeaveTypeID         Int
+  BalanceYear         Int
+  EntitledDays        Decimal   @db.Decimal(6, 2)
+  UsedDays            Decimal   @default(0, map: "DF__LeaveBala__UsedD__5BAD9CC8") @db.Decimal(6, 2)
+  PendingDays         Decimal   @default(0, map: "DF__LeaveBala__Pendi__5CA1C101") @db.Decimal(6, 2)
+  CarryOverDays       Decimal   @default(0, map: "DF__LeaveBala__Carry__5D95E53A") @db.Decimal(6, 2)
+  AdjustedDays        Decimal   @default(0, map: "DF__LeaveBala__Adjus__5E8A0973") @db.Decimal(6, 2)
+  CarryOverExpiryYear Int?
+  RemainingDays Decimal? @db.Decimal(10, 2) @default(dbgenerated(""))
+  LastUpdatedAt       DateTime  @default(dbgenerated("getutcdate()"), map: "DF__LeaveBala__LastU__5F7E2DAC")
+  Employee            Employee  @relation(fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__LeaveBala__Emplo__59C55456")
+  LeaveType           LeaveType @relation(fields: [LeaveTypeID], references: [LeaveTypeID], onUpdate: NoAction, map: "FK__LeaveBala__Leave__5AB9788F")
+
+  @@unique([EmployeeID, LeaveTypeID, BalanceYear], name: "UQ_LeaveBalance", map: "UQ_LeaveBalance")
+  @@index([EmployeeID, LeaveTypeID], map: "IX_LeaveBalance_Employee_Type")
+}
+
+model HolidayCalendar {
+  HolidayID         Int           @id(map: "PK__HolidayC__2D35D59ABEBE05AD") @default(autoincrement())
+  HolidayName       String        @db.NVarChar(100)
+  HolidayDate       DateTime      @db.Date
+  IsRecurringYearly Boolean       @default(false, map: "DF__HolidayCa__IsRec__634EBE90")
+  WorkLocationID    Int?
+  PayMultiplier     Decimal       @default(3.00, map: "DF__HolidayCa__PayMu__65370702") @db.Decimal(4, 2)
+  CreatedAt         DateTime      @default(dbgenerated("getutcdate()"), map: "DF__HolidayCa__Creat__662B2B3B")
+  WorkLocation      WorkLocation? @relation(fields: [WorkLocationID], references: [WorkLocationID], onDelete: NoAction, onUpdate: NoAction, map: "FK__HolidayCa__WorkL__6442E2C9")
+
+  @@unique([HolidayDate, WorkLocationID], name: "UQ_Holiday_Date_Location", map: "UQ_Holiday_Date_Location")
+}
+
+model LeaveRequest {
+  LeaveRequestID    Int                @id(map: "PK__LeaveReq__6094218E619AB43A") @default(autoincrement())
+  EmployeeID        Int
+  LeaveTypeID       Int
+  StartDate         DateTime           @db.Date
+  EndDate           DateTime           @db.Date
+  TotalDays         Decimal            @db.Decimal(5, 2)
+  IsHalfDay         Boolean            @default(false, map: "DF__LeaveRequ__IsHal__6AEFE058")
+  HalfDayPortion    String?            @db.NVarChar(10)
+  Reason            String?
+  AttachmentURL     String?            @db.NVarChar(300)
+  Status            String             @default("Draft", map: "DF__LeaveRequ__Statu__6CD828CA") @db.NVarChar(30)
+  CancelledBy       Int?
+  CancelReason      String?            @db.NVarChar(500)
+  CreatedAt         DateTime           @default(dbgenerated("getutcdate()"), map: "DF__LeaveRequ__Creat__6FB49575")
+  UpdatedAt         DateTime           @default(dbgenerated("getutcdate()"), map: "DF__LeaveRequ__Updat__70A8B9AE")
+  AttendanceRecords AttendanceRecord[]
+  ActionLogs        LeaveActionLog[]
+  Approvals         LeaveApproval[]
+  CancelledByEmp    Employee?          @relation("LeaveCancelledBy", fields: [CancelledBy], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK__LeaveRequ__Cance__6EC0713C")
+  Employee          Employee           @relation("LeaveEmployee", fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__LeaveRequ__Emplo__690797E6")
+  LeaveType         LeaveType          @relation(fields: [LeaveTypeID], references: [LeaveTypeID], onUpdate: NoAction, map: "FK__LeaveRequ__Leave__69FBBC1F")
+
+  @@index([EmployeeID], map: "IX_LeaveRequest_Employee")
+  @@index([Status], map: "IX_LeaveRequest_Status")
+}
+
+model ApprovalStep {
+  ApprovalStepID Int             @id(map: "PK__Approval__AF502E4AAADBDB7F") @default(autoincrement())
+  LeaveTypeID    Int
+  StepOrder      Int
+  StepName       String          @db.NVarChar(100)
+  ApproverRole   String          @db.NVarChar(50)
+  IsOptional     Boolean         @default(false, map: "DF__ApprovalS__IsOpt__76619304")
+  LeaveType      LeaveType       @relation(fields: [LeaveTypeID], references: [LeaveTypeID], onUpdate: NoAction, map: "FK__ApprovalS__Leave__756D6ECB")
+  Approvals      LeaveApproval[]
+
+  @@unique([LeaveTypeID, StepOrder], name: "UQ_ApprovalStep", map: "UQ_ApprovalStep")
+}
+
+model LeaveApproval {
+  ApprovalID     Int          @id(map: "PK__LeaveApp__328477D425F8A81C") @default(autoincrement())
+  LeaveRequestID Int
+  ApprovalStepID Int
+  ApproverID     Int
+  Decision       String       @db.NVarChar(20)
+  Comments       String?      @db.NVarChar(500)
+  DecidedAt      DateTime?
+  DelegatedTo    Int?
+  CreatedAt      DateTime     @default(dbgenerated("getutcdate()"), map: "DF__LeaveAppr__Creat__7E02B4CC")
+  ApprovalStep   ApprovalStep @relation(fields: [ApprovalStepID], references: [ApprovalStepID], onUpdate: NoAction, map: "FK__LeaveAppr__Appro__7A3223E8")
+  Approver       Employee     @relation("LeaveApprover", fields: [ApproverID], references: [EmployeeID], onUpdate: NoAction, map: "FK__LeaveAppr__Appro__7B264821")
+  Delegate       Employee?    @relation("DelegatedApprover", fields: [DelegatedTo], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK__LeaveAppr__Deleg__7D0E9093")
+  LeaveRequest   LeaveRequest @relation(fields: [LeaveRequestID], references: [LeaveRequestID], onUpdate: NoAction, map: "FK__LeaveAppr__Leave__793DFFAF")
+}
+
+model LeaveActionLog {
+  LogID          Int          @id(map: "PK__LeaveAct__5E5499A8ECEBAF95") @default(autoincrement())
+  LeaveRequestID Int
+  ActionBy       Int
+  ActionType     String       @db.NVarChar(50)
+  PreviousStatus String?      @db.NVarChar(30)
+  NewStatus      String?      @db.NVarChar(30)
+  Notes          String?      @db.NVarChar(500)
+  ActionAt       DateTime     @default(dbgenerated("getutcdate()"), map: "DF__LeaveActi__Actio__02C769E9")
+  ActionByEmp    Employee     @relation(fields: [ActionBy], references: [EmployeeID], onUpdate: NoAction, map: "FK__LeaveActi__Actio__01D345B0")
+  LeaveRequest   LeaveRequest @relation(fields: [LeaveRequestID], references: [LeaveRequestID], onUpdate: NoAction, map: "FK__LeaveActi__Leave__00DF2177")
+}
+
+model SickLeaveTier {
+  TierID          Int         @id(map: "PK__SickLeav__362F55FDE847470A") @default(autoincrement())
+  LeavePolicyID   Int
+  TierOrder       Int
+  FromMonthNumber Int
+  ToMonthNumber   Int
+  PayPercentage   Decimal     @db.Decimal(5, 2)
+  LeavePolicy     LeavePolicy @relation(fields: [LeavePolicyID], references: [LeavePolicyID], onUpdate: NoAction, map: "FK__SickLeave__Leave__725BF7F6")
+
+  @@unique([LeavePolicyID, TierOrder], name: "UQ_SickLeaveTier", map: "UQ_SickLeaveTier")
+}
+
+model EmployeeSpecialStatus {
+  StatusID                  Int       @id(map: "PK__Employee__C8EE2043B9DC7A2E") @default(autoincrement())
+  EmployeeID                Int
+  StatusType                String    @db.NVarChar(30)
+  StartDate                 DateTime  @db.Date
+  ExpectedEndDate           DateTime? @db.Date
+  ActualEndDate             DateTime? @db.Date
+  PregnancyMonth            Int?
+  ReducedHoursActive        Boolean   @default(false, map: "DF__EmployeeS__Reduc__6BAEFA67")
+  BreastfeedingBreaksPerDay Int       @default(2, map: "DF__EmployeeS__Breas__6CA31EA0")
+  Notes                     String?   @db.NVarChar(500)
+  CreatedAt                 DateTime  @default(dbgenerated("getutcdate()"), map: "DF__EmployeeS__Creat__6D9742D9")
+  UpdatedAt                 DateTime  @default(dbgenerated("getutcdate()"), map: "DF__EmployeeS__Updat__6E8B6712")
+  Employee                  Employee  @relation(fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__EmployeeS__Emplo__69C6B1F5")
+}
+
+model PayGrade {
+  PayGradeID   Int              @id(map: "PK__PayGrade__6A12DAD1DEFB6593") @default(autoincrement())
+  GradeCode    String           @unique(map: "UQ__PayGrade__B1E0A1865E054742") @db.NVarChar(20)
+  GradeName    String           @db.NVarChar(100)
+  MinSalary    Decimal          @db.Decimal(15, 2)
+  MaxSalary    Decimal          @db.Decimal(15, 2)
+  CurrencyCode String           @default("USD", map: "DF__PayGrade__Curren__656C112C") @db.NVarChar(10)
+  IsActive     Boolean          @default(true, map: "DF__PayGrade__IsActi__66603565")
+  CreatedAt    DateTime         @default(dbgenerated("getutcdate()"), map: "DF__PayGrade__Create__6754599E")
+  Salaries     EmployeeSalary[]
+  Positions    Position[]
+}
+
+model PayType {
+  PayTypeID   Int                @id(map: "PK__PayType__4CA963B249D01D26") @default(autoincrement())
+  PayTypeCode String             @unique(map: "UQ__PayType__FD861B2F57568DA2") @db.NVarChar(20)
+  PayTypeName String             @db.NVarChar(100)
+  Category    String             @db.NVarChar(30)
+  IsRecurring Boolean            @default(true, map: "DF__PayType__IsRecur__6D0D32F4")
+  IsTaxable   Boolean            @default(true, map: "DF__PayType__IsTaxab__6E01572D")
+  IsActive    Boolean            @default(true, map: "DF__PayType__IsActiv__6EF57B66")
+  CreatedAt   DateTime           @default(dbgenerated("getutcdate()"), map: "DF__PayType__Created__6FE99F9F")
+  IsInsurable Boolean            @default(true, map: "DF__PayType__IsInsur__14B10FFA")
+  EntryLines  PayrollEntryLine[]
+}
+
+model OvertimeRule {
+  OvertimeRuleID  Int             @id(map: "PK__Overtime__1EE05AAA81CF04E2") @default(autoincrement())
+  RuleName        String          @db.NVarChar(100)
+  ThresholdHours  Decimal         @db.Decimal(5, 2)
+  Multiplier      Decimal         @db.Decimal(4, 2)
+  AppliesTo       String?         @db.NVarChar(50)
+  IsActive        Boolean         @default(true, map: "DF__OvertimeR__IsAct__72C60C4A")
+  CreatedAt       DateTime        @default(dbgenerated("getutcdate()"), map: "DF__OvertimeR__Creat__73BA3083")
+  IsNighttime     Boolean         @default(false, map: "DF__OvertimeR__IsNig__12C8C788")
+  IsRestDay       Boolean         @default(false, map: "DF__OvertimeR__IsRes__13BCEBC1")
+  PayrollPolicies PayrollPolicy[]
+}
+
+model Allowance {
+  AllowanceID        Int                 @id(map: "PK__Allowanc__7B12D0419A339589") @default(autoincrement())
+  AllowanceName      String              @db.NVarChar(100)
+  Amount             Decimal             @db.Decimal(10, 2)
+  CurrencyCode       String              @default("USD", map: "DF__Allowance__Curre__05A3D694") @db.NVarChar(10)
+  AppliesTo          String?             @db.NVarChar(50)
+  IsActive           Boolean             @default(true, map: "DF__Allowance__IsAct__0697FACD")
+  CreatedAt          DateTime            @default(dbgenerated("getutcdate()"), map: "DF__Allowance__Creat__078C1F06")
+  EmployeeAllowances EmployeeAllowance[]
+}
+
+model EmployeeAllowance {
+  EmployeeAllowanceID Int       @id(map: "PK__Employee__64ADC7CC5D9D12CA") @default(autoincrement())
+  EmployeeID          Int
+  AllowanceID         Int
+  EffectiveFrom       DateTime  @db.Date
+  EffectiveTo         DateTime? @db.Date
+  OverrideAmount      Decimal?  @db.Decimal(10, 2)
+  CreatedAt           DateTime  @default(dbgenerated("getutcdate()"), map: "DF__EmployeeA__Creat__0C50D423")
+  Allowance           Allowance @relation(fields: [AllowanceID], references: [AllowanceID], onUpdate: NoAction, map: "FK__EmployeeA__Allow__0B5CAFEA")
+  Employee            Employee  @relation(fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__EmployeeA__Emplo__0A688BB1")
+}
+
+model EmployeeSalary {
+  SalaryID      Int       @id(map: "PK__Employee__4BE204B723BDE8F4") @default(autoincrement())
+  EmployeeID    Int
+  PayGradeID    Int
+  BaseSalary    Decimal   @db.Decimal(15, 2)
+  CurrencyCode  String    @default("USD", map: "DF__EmployeeS__Curre__11158940") @db.NVarChar(10)
+  EffectiveFrom DateTime  @db.Date
+  EffectiveTo   DateTime? @db.Date
+  ChangeReason  String?   @db.NVarChar(200)
+  ApprovedBy    Int?
+  CreatedAt     DateTime  @default(dbgenerated("getutcdate()"), map: "DF__EmployeeS__Creat__12FDD1B2")
+  Approver      Employee? @relation("EmployeeSalaryApprover", fields: [ApprovedBy], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK__EmployeeS__Appro__1209AD79")
+  Employee      Employee  @relation("EmployeeSalaryEmployee", fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__EmployeeS__Emplo__0F2D40CE")
+  PayGrade      PayGrade  @relation(fields: [PayGradeID], references: [PayGradeID], onUpdate: NoAction, map: "FK__EmployeeS__PayGr__10216507")
+}
+
+model PayrollPolicy {
+  PolicyID                Int           @id(map: "PK__PayrollP__2E133944DFED4B28") @default(autoincrement())
+  PolicyName              String        @db.NVarChar(150)
+  PayPeriod               String        @db.NVarChar(20)
+  CutoffDay               Int
+  PaymentDay              Int
+  OvertimeRuleID          Int?
+  TaxCalculationMethod    String        @default("Standard", map: "DF__PayrollPo__TaxCa__19AACF41") @db.NVarChar(50)
+  MaxMonthlyDeductionDays Int           @default(5, map: "DF__PayrollPo__MaxMo__1A9EF37A")
+  MinimumWageEGP          Decimal       @default(6000.00, map: "DF__PayrollPo__Minim__1B9317B3") @db.Decimal(10, 2)
+  AnnualIncrementRatePct  Decimal       @default(3.00, map: "DF__PayrollPo__Annua__1C873BEC") @db.Decimal(5, 2)
+  IsActive                Boolean       @default(true, map: "DF__PayrollPo__IsAct__1D7B6025")
+  ApprovedBy              Int?
+  ApprovedAt              DateTime?
+  CreatedAt               DateTime      @default(dbgenerated("getutcdate()"), map: "DF__PayrollPo__Creat__1F63A897")
+  ApprovedByEmp           Employee?     @relation("PolicyApprover", fields: [ApprovedBy], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK__PayrollPo__Appro__1E6F845E")
+  OvertimeRule            OvertimeRule? @relation(fields: [OvertimeRuleID], references: [OvertimeRuleID], onDelete: NoAction, onUpdate: NoAction, map: "FK__PayrollPo__Overt__18B6AB08")
+  PayrollRuns             PayrollRun[]
+}
+
+model PayrollRun {
+  PayrollRunID     Int                @id(map: "PK__PayrollR__8B3CCD6DCC65A699") @default(autoincrement())
+  PolicyID         Int
+  PeriodYear       Int
+  PeriodMonth      Int
+  PeriodStartDate  DateTime           @db.Date
+  PeriodEndDate    DateTime           @db.Date
+  CutoffDate       DateTime           @db.Date
+  PaymentDate      DateTime           @db.Date
+  Status           String             @default("Draft", map: "DF__PayrollRu__Statu__24285DB4") @db.NVarChar(30)
+  TotalGrossAmount Decimal            @default(0, map: "DF__PayrollRu__Total__2610A626") @db.Decimal(18, 2)
+  TotalNetAmount   Decimal            @default(0, map: "DF__PayrollRu__Total__2704CA5F") @db.Decimal(18, 2)
+  TotalEmployees   Int                @default(0, map: "DF__PayrollRu__Total__27F8EE98")
+  ProcessedBy      Int?
+  ApprovedBy       Int?
+  CreatedAt        DateTime           @default(dbgenerated("getutcdate()"), map: "DF__PayrollRu__Creat__2AD55B43")
+  FinalizedAt      DateTime?
+  BankFiles        BankFile[]
+  Entries          PayrollEntry[]
+  Exceptions       PayrollException[]
+  Approver         Employee?          @relation("PayrollApprover", fields: [ApprovedBy], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK__PayrollRu__Appro__29E1370A")
+  Policy           PayrollPolicy      @relation(fields: [PolicyID], references: [PolicyID], onUpdate: NoAction, map: "FK__PayrollRu__Polic__22401542")
+  Processor        Employee?          @relation("PayrollProcessor", fields: [ProcessedBy], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK__PayrollRu__Proce__28ED12D1")
+  Payslips         Payslip[]
+}
+
+model PayrollEntry {
+  EntryID                 Int                @id(map: "PK__PayrollE__F57BD2D72D7A6C04") @default(autoincrement())
+  PayrollRunID            Int
+  EmployeeID              Int
+  AttendanceSummaryID     Int?
+  BaseSalary              Decimal            @db.Decimal(15, 2)
+  TotalEarnings           Decimal            @default(0, map: "DF__PayrollEn__Total__318258D2") @db.Decimal(15, 2)
+  TotalDeductions         Decimal            @default(0, map: "DF__PayrollEn__Total__32767D0B") @db.Decimal(15, 2)
+  TaxAmount               Decimal            @default(0, map: "DF__PayrollEn__TaxAm__336AA144") @db.Decimal(15, 2)
+  UnpaidLeaveDeduction    Decimal            @default(0, map: "DF__PayrollEn__Unpai__345EC57D") @db.Decimal(15, 2)
+  OvertimePay             Decimal            @default(0, map: "DF__PayrollEn__Overt__3552E9B6") @db.Decimal(15, 2)
+  SocialInsuranceWage     Decimal            @default(0, map: "DF__PayrollEn__Socia__36470DEF") @db.Decimal(15, 2)
+  EmployeeSocialInsurance Decimal            @default(0, map: "DF__PayrollEn__Emplo__373B3228") @db.Decimal(15, 2)
+  EmployerSocialInsurance Decimal            @default(0, map: "DF__PayrollEn__Emplo__382F5661") @db.Decimal(15, 2)
+  NetPay                  Decimal            @db.Decimal(15, 2)
+  Status                  String             @default("Draft", map: "DF__PayrollEn__Statu__39237A9A") @db.NVarChar(30)
+  PayslipGenerated        Boolean            @default(false, map: "DF__PayrollEn__Paysl__3B0BC30C")
+  CreatedAt               DateTime           @default(dbgenerated("getutcdate()"), map: "DF__PayrollEn__Creat__3BFFE745")
+  AttendanceSummary       AttendanceSummary? @relation(fields: [AttendanceSummaryID], references: [SummaryID], onDelete: NoAction, onUpdate: NoAction, map: "FK__PayrollEn__Atten__308E3499")
+  Employee                Employee           @relation(fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__PayrollEn__Emplo__2F9A1060")
+  PayrollRun              PayrollRun         @relation(fields: [PayrollRunID], references: [PayrollRunID], onUpdate: NoAction, map: "FK__PayrollEn__Payro__2EA5EC27")
+  Lines                   PayrollEntryLine[]
+  Payslip                 Payslip?
+
+  @@unique([PayrollRunID, EmployeeID], name: "UQ_PayrollEntry", map: "UQ_PayrollEntry")
+  @@index([PayrollRunID, EmployeeID], map: "IX_PayrollEntry_Run_Employee")
+}
+
+model PayrollEntryLine {
+  LineID            Int          @id(map: "PK__PayrollE__2EAE64C9E7A8E1CD") @default(autoincrement())
+  EntryID           Int
+  PayTypeID         Int
+  Description       String       @db.NVarChar(200)
+  Amount            Decimal      @db.Decimal(15, 2)
+  Quantity          Decimal      @default(1, map: "DF__PayrollEn__Quant__40C49C62") @db.Decimal(7, 2)
+  UnitRate          Decimal?     @db.Decimal(15, 4)
+  SourceModule      String?      @db.NVarChar(50)
+  SourceReferenceID Int?
+  CreatedAt         DateTime     @default(dbgenerated("getutcdate()"), map: "DF__PayrollEn__Creat__41B8C09B")
+  Entry             PayrollEntry @relation(fields: [EntryID], references: [EntryID], onUpdate: NoAction, map: "FK__PayrollEn__Entry__3EDC53F0")
+  PayType           PayType      @relation(fields: [PayTypeID], references: [PayTypeID], onUpdate: NoAction, map: "FK__PayrollEn__PayTy__3FD07829")
+}
+
+model Payslip {
+  PayslipID          Int          @id(map: "PK__Payslip__6EDC7142D35E58DA") @default(autoincrement())
+  EntryID            Int          @unique(map: "UQ__Payslip__F57BD2D641232A99")
+  EmployeeID         Int
+  PayrollRunID       Int
+  PayslipNumber      String       @unique(map: "UQ__Payslip__38A71BAD1CF1E039") @db.NVarChar(50)
+  IssueDate          DateTime     @db.Date
+  DocumentURL        String?      @db.NVarChar(300)
+  IsViewedByEmployee Boolean      @default(false, map: "DF__Payslip__IsViewe__4959E263")
+  CreatedAt          DateTime     @default(dbgenerated("getutcdate()"), map: "DF__Payslip__Created__4A4E069C")
+  Employee           Employee     @relation(fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__Payslip__Employe__477199F1")
+  Entry              PayrollEntry @relation(fields: [EntryID], references: [EntryID], onUpdate: NoAction, map: "FK__Payslip__EntryID__467D75B8")
+  PayrollRun         PayrollRun   @relation(fields: [PayrollRunID], references: [PayrollRunID], onUpdate: NoAction, map: "FK__Payslip__Payroll__4865BE2A")
+
+  @@index([EmployeeID], map: "IX_Payslip_Employee")
+}
+
+model PayrollException {
+  ExceptionID     Int        @id(map: "PK__PayrollE__26981DA8AC2D1843") @default(autoincrement())
+  PayrollRunID    Int
+  EmployeeID      Int
+  ExceptionType   String     @db.NVarChar(80)
+  Description     String     @db.NVarChar(500)
+  Status          String     @default("Open", map: "DF__PayrollEx__Statu__4F12BBB9") @db.NVarChar(30)
+  ResolvedBy      Int?
+  ResolvedAt      DateTime?
+  ResolutionNotes String?    @db.NVarChar(500)
+  CreatedAt       DateTime   @default(dbgenerated("getutcdate()"), map: "DF__PayrollEx__Creat__51EF2864")
+  Employee        Employee   @relation("ExceptionEmployee", fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__PayrollEx__Emplo__4E1E9780")
+  PayrollRun      PayrollRun @relation(fields: [PayrollRunID], references: [PayrollRunID], onUpdate: NoAction, map: "FK__PayrollEx__Payro__4D2A7347")
+  Resolver        Employee?  @relation("ExceptionResolver", fields: [ResolvedBy], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK__PayrollEx__Resol__50FB042B")
+
+  @@index([PayrollRunID, Status], map: "IX_PayrollException_Run_Open")
+}
+
+model BankFile {
+  BankFileID       Int        @id(map: "PK__BankFile__792BEEA2C8238F7B") @default(autoincrement())
+  PayrollRunID     Int
+  GeneratedBy      Int
+  FileFormat       String     @db.NVarChar(30)
+  TotalAmount      Decimal    @db.Decimal(18, 2)
+  TransactionCount Int
+  FileURL          String     @db.NVarChar(300)
+  Status           String     @default("Generated", map: "DF__BankFile__Status__56B3DD81") @db.NVarChar(30)
+  GeneratedAt      DateTime   @default(dbgenerated("getutcdate()"), map: "DF__BankFile__Genera__589C25F3")
+  GeneratedByEmp   Employee   @relation("BankFileGenerator", fields: [GeneratedBy], references: [EmployeeID], onUpdate: NoAction, map: "FK__BankFile__Genera__55BFB948")
+  PayrollRun       PayrollRun @relation(fields: [PayrollRunID], references: [PayrollRunID], onUpdate: NoAction, map: "FK__BankFile__Payrol__54CB950F")
+}
+
+model EmployeeBankAccount {
+  BankAccountID Int      @id(map: "PK__Employee__4FC8E7415A6BEA7C") @default(autoincrement())
+  EmployeeID    Int
+  BankName      String   @db.NVarChar(100)
+  AccountNumber String   @db.NVarChar(50)
+  IBAN          String?  @db.NVarChar(50)
+  SwiftCode     String?  @db.NVarChar(20)
+  AccountType   String   @default("Checking", map: "DF__EmployeeB__Accou__5C6CB6D7") @db.NVarChar(30)
+  CurrencyCode  String   @default("USD", map: "DF__EmployeeB__Curre__5D60DB10") @db.NVarChar(10)
+  IsPrimary     Boolean  @default(true, map: "DF__EmployeeB__IsPri__5E54FF49")
+  IsActive      Boolean  @default(true, map: "DF__EmployeeB__IsAct__5F492382")
+  CreatedAt     DateTime @default(dbgenerated("getutcdate()"), map: "DF__EmployeeB__Creat__603D47BB")
+  Employee      Employee @relation(fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__EmployeeB__Emplo__5B78929E")
+}
+
+model SocialInsuranceConfig {
+  ConfigID        Int       @id(map: "PK__SocialIn__C3BC333CA0CAD1D8") @default(autoincrement())
+  EffectiveFrom   DateTime  @db.Date
+  EffectiveTo     DateTime? @db.Date
+  EmployeeRatePct Decimal   @default(7.25, map: "DF__SocialIns__Emplo__047AA831") @db.Decimal(5, 2)
+  EmployerRatePct Decimal   @default(18.75, map: "DF__SocialIns__Emplo__056ECC6A") @db.Decimal(5, 2)
+  TotalRatePct    Decimal?  @db.Decimal(6, 2)
+  LegalReference  String?   @db.NVarChar(200)
+  CreatedAt       DateTime  @default(dbgenerated("getutcdate()"), map: "DF__SocialIns__Creat__0662F0A3")
+}
+
+model TaxBracket {
+  BracketID            Int      @id(map: "PK__TaxBrack__8AC2D799B9512D3E") @default(autoincrement())
+  EffectiveYear        Int
+  BracketOrder         Int
+  FromAmountEGP        Decimal  @db.Decimal(15, 2)
+  ToAmountEGP          Decimal? @db.Decimal(15, 2)
+  RatePct              Decimal  @db.Decimal(5, 2)
+  PersonalExemptionEGP Decimal  @default(0, map: "DF__TaxBracke__Perso__10E07F16") @db.Decimal(15, 2)
+  LegalReference       String?  @db.NVarChar(200)
+
+  @@unique([EffectiveYear, BracketOrder], name: "UQ_TaxBracket", map: "UQ_TaxBracket")
+}
+
+model Notification {
+  NotificationID Int      @id(map: "PK__Notifica__20CF2E3267DFF648") @default(autoincrement())
+  RecipientID    Int
+  EventCode      String   @db.NVarChar(20)
+  Title          String   @db.NVarChar(200)
+  Body           String?  @db.NVarChar(Max)
+  Channel        String   @default("InApp", map: "DF__Notificat__Chann__640DD89F") @db.NVarChar(20)
+  IsRead         Boolean  @default(false, map: "DF__Notificat__IsRea__65F62111")
+  SourceModule   String   @db.NVarChar(50)
+  SourceEntityID Int?
+  CreatedAt      DateTime @default(dbgenerated("getutcdate()"), map: "DF__Notificat__Creat__66EA454A")
+  Recipient      Employee @relation(fields: [RecipientID], references: [EmployeeID], onUpdate: NoAction, map: "FK__Notificat__Recip__6319B466")
+
+  @@index([RecipientID, IsRead, CreatedAt(sort: Desc)], map: "IX_Notification_Recipient_Unread")
+}
+
+model EmployeeChangeRequest {
+  ChangeRequestID Int       @id(map: "PK__Employee__AA1AE53F91030A89") @default(autoincrement())
+  EmployeeID      Int
+  RequestedBy     Int
+  FieldName       String    @db.NVarChar(100)
+  OldValue        String?   @db.NVarChar(Max)
+  NewValue        String    @db.NVarChar(Max)
+  Status          String    @default("Pending", map: "DF__EmployeeC__Statu__59FA5E80") @db.NVarChar(30)
+  ReviewedBy      Int?
+  ReviewNote      String?   @db.NVarChar(500)
+  ReviewedAt      DateTime?
+  CreatedAt       DateTime  @default(dbgenerated("getutcdate()"), map: "DF__EmployeeC__Creat__5CD6CB2B")
+  Employee        Employee  @relation("ChangeRequestEmployee", fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__EmployeeC__Emplo__5812160E")
+  Requester       Employee  @relation("ChangeRequestedBy", fields: [RequestedBy], references: [EmployeeID], onUpdate: NoAction, map: "FK__EmployeeC__Reque__59063A47")
+  Reviewer        Employee? @relation("ChangeRequestReviewer", fields: [ReviewedBy], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK__EmployeeC__Revie__5BE2A6F2")
+}
+
+model EmployeeAuditLog {
+  AuditID      Int      @id(map: "PK__Employee__A17F23B8BC6DFC5D") @default(autoincrement())
+  EmployeeID   Int
+  ChangedBy    Int
+  ChangeType   String   @db.NVarChar(50)
+  FieldChanged String?  @db.NVarChar(100)
+  OldValue     String?  @db.NVarChar(Max)
+  NewValue     String?  @db.NVarChar(Max)
+  IPAddress    String?  @db.NVarChar(50)
+  ChangedAt    DateTime @default(dbgenerated("getutcdate()"), map: "DF__EmployeeA__Chang__619B8048")
+  ChangedByEmp Employee @relation("AuditChanger", fields: [ChangedBy], references: [EmployeeID], onUpdate: NoAction, map: "FK__EmployeeA__Chang__60A75C0F")
+  Employee     Employee @relation("AuditEmployee", fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__EmployeeA__Emplo__5FB337D6")
+}
+
+model EmployeeMedicalExam {
+  ExamID      Int       @id(map: "PK__Employee__297521A7478A7CBD") @default(autoincrement())
+  EmployeeID  Int
+  ExamType    String    @db.NVarChar(50)
+  ExamDate    DateTime  @db.Date
+  Result      String    @db.NVarChar(30)
+  ExamNotes   String?   @db.NVarChar(500)
+  NextExamDue DateTime? @db.Date
+  RecordedBy  Int?
+  CreatedAt   DateTime  @default(dbgenerated("getutcdate()"), map: "DF__EmployeeM__Creat__0D0FEE32")
+  Employee    Employee  @relation("MedicalExamEmployee", fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__EmployeeM__Emplo__093F5D4E")
+  Recorder    Employee? @relation("MedicalExamRecorder", fields: [RecordedBy], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK__EmployeeM__Recor__0C1BC9F9")
+}
+
+model sysdiagrams {
+  name         String @db.NVarChar(128)
+  principal_id Int
+  diagram_id   Int    @id(map: "PK__sysdiagr__C2B05B61BCC06552") @default(autoincrement())
+  version      Int?
+  definition   Bytes?
+
+  @@unique([principal_id, name], map: "UK_principal_name")
+}

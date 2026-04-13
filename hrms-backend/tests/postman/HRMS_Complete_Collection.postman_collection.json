@@ -1,0 +1,1058 @@
+{
+  "info": {
+    "name": "University HRMS — Complete API Collection",
+    "_postman_id": "hrms-thesis-2025",
+    "description": "Complete Postman collection for the University HR Management System backend.\n\nSETUP:\n1. Set base_url = http://localhost:3000\n2. Run 'POST /auth/login' first to auto-set the {{token}} variable\n3. All other requests use {{token}} automatically\n\nTEST SCENARIOS included for each endpoint:\n- Success case (200/201)\n- Validation failure (422)\n- Auth failure (401)\n- Business rule failure (400)\n- Not found (404)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "employeeId", "value": "1", "type": "string" },
+    { "key": "leaveRequestId", "value": "1", "type": "string" },
+    { "key": "attendanceId", "value": "1", "type": "string" },
+    { "key": "payrollRunId", "value": "1", "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Login (Employee)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "if (pm.response.code === 200) {",
+                "  const json = pm.response.json();",
+                "  pm.collectionVariables.set('token', json.data.accessToken);",
+                "  pm.collectionVariables.set('employeeId', json.data.employee.id);",
+                "  console.log('Token set. Role:', json.data.employee.role);",
+                "}",
+                "pm.test('Login successful', () => pm.response.to.have.status(200));",
+                "pm.test('Token received', () => pm.expect(pm.response.json().data.accessToken).to.be.a('string'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sarah.johnson@university.edu\",\n  \"password\": \"Password123!\"\n}"
+            }
+          },
+          "_thesis_note": "Standard login. On success, the test script auto-saves the token to the {{token}} variable for all subsequent requests."
+        },
+        {
+          "name": "Login (HR Role)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"hr.manager@university.edu\",\n  \"password\": \"Password123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login — FAIL: Invalid Password",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Returns 401 for bad credentials', () => pm.response.to.have.status(401));",
+                "pm.test('Error code is INVALID_CREDENTIALS', () => {",
+                "  pm.expect(pm.response.json().error.code).to.eql('INVALID_CREDENTIALS');",
+                "});"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"sarah.johnson@university.edu\",\n  \"password\": \"wrongpassword\"\n}" }
+          }
+        },
+        {
+          "name": "Login — FAIL: Missing Field",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"sarah.johnson@university.edu\"\n}" }
+          },
+          "_expected": "422 VALIDATION_ERROR — password is required"
+        },
+        {
+          "name": "Get My Identity (auth/me)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/auth/me"
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/auth/refresh",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "👤 Employee Profile",
+      "item": [
+        {
+          "name": "Get My Profile (Image 1)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                "pm.test('Has EmployeeCode', () => pm.expect(pm.response.json().data.EmployeeCode).to.exist);",
+                "pm.test('Has Department', () => pm.expect(pm.response.json().data.Department).to.exist);"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/employees/me"
+          },
+          "_thesis_note": "Powers the Employee Self-Service profile card (Image 1). Returns personal info, job info, department, position, supervisor, and work location."
+        },
+        {
+          "name": "List All Employees (HR View)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/employees?page=1&limit=20&status=Active&departmentId=1",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "Active" },
+                { "key": "departmentId", "value": "1" },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Employees — with Search",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/employees?search=Johnson&status=Active"
+          },
+          "_thesis_note": "Searches across EmployeeCode, FullName, and Email simultaneously."
+        },
+        {
+          "name": "Get Single Employee (Full Detail)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/employees/{{employeeId}}"
+          }
+        },
+        {
+          "name": "Create Employee (HR)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/employees",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeCode\": \"EMP010\",\n  \"FirstName\": \"Ahmed\",\n  \"LastName\": \"Hassan\",\n  \"DateOfBirth\": \"1990-03-15\",\n  \"Gender\": \"Male\",\n  \"Nationality\": \"Egyptian\",\n  \"MaritalStatus\": \"Married\",\n  \"Email\": \"ahmed.hassan@university.edu\",\n  \"Phone\": \"+20-10-1234-5678\",\n  \"Address\": \"123 Tahrir Square, Cairo\",\n  \"DepartmentID\": 1,\n  \"PositionID\": 2,\n  \"EmploymentType\": \"Full-Time\",\n  \"StartDate\": \"2025-01-01\",\n  \"WorkLocationID\": 1,\n  \"SupervisorID\": 1,\n  \"HasDisability\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Employee — FAIL: Duplicate Email",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/employees",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeCode\": \"EMP099\",\n  \"FirstName\": \"Test\",\n  \"LastName\": \"User\",\n  \"DateOfBirth\": \"1990-01-01\",\n  \"Gender\": \"Male\",\n  \"Nationality\": \"Egyptian\",\n  \"MaritalStatus\": \"Single\",\n  \"Email\": \"sarah.johnson@university.edu\",\n  \"DepartmentID\": 1,\n  \"PositionID\": 1,\n  \"EmploymentType\": \"Full-Time\",\n  \"StartDate\": \"2025-01-01\",\n  \"WorkLocationID\": 1\n}"
+            }
+          },
+          "_expected": "409 DUPLICATE_ENTRY — email already registered"
+        },
+        {
+          "name": "Update Employee (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/employees/{{employeeId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"Phone\": \"+20-10-9999-9999\",\n  \"Address\": \"456 New Address, Cairo, Egypt\"\n}" }
+          }
+        },
+        {
+          "name": "Submit Change Request (Edit Request button — Image 1)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/employees/{{employeeId}}/change-requests",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"FieldName\": \"Phone\",\n  \"NewValue\": \"+20-10-1111-2222\"\n}"
+            }
+          },
+          "_thesis_note": "Triggered by the Edit Request button in the Employee Self-Service UI (Image 1). Employee cannot directly edit sensitive job fields — they must submit a change request for HR review."
+        },
+        {
+          "name": "Review Change Request (HR Approves)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/employees/change-requests/1",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Status\": \"Approved\",\n  \"ReviewNote\": \"Verified new phone number with employee directly.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Review Change Request — Reject",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/employees/change-requests/1",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"Status\": \"Rejected\",\n  \"ReviewNote\": \"Could not verify the new information provided.\"\n}" }
+          }
+        },
+        {
+          "name": "Get Employee Salary History",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/employees/{{employeeId}}/salary"
+          }
+        },
+        {
+          "name": "Create Salary Record",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/employees/{{employeeId}}/salary",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"PayGradeID\": 1,\n  \"BaseSalary\": 15000.00,\n  \"CurrencyCode\": \"EGP\",\n  \"EffectiveFrom\": \"2025-01-01\",\n  \"ChangeReason\": \"Annual increment 2025 (3%)\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Salary — FAIL: Out of Pay Grade Range",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/employees/{{employeeId}}/salary",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"PayGradeID\": 1,\n  \"BaseSalary\": 1000000.00,\n  \"CurrencyCode\": \"EGP\",\n  \"EffectiveFrom\": \"2025-01-01\"\n}" }
+          },
+          "_expected": "400 SALARY_OUT_OF_RANGE — exceeds pay grade maximum"
+        },
+        {
+          "name": "Get Org Chart",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/employees/{{employeeId}}/org-chart"
+          }
+        },
+        {
+          "name": "Terminate Employee",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/employees/{{employeeId}}/terminate",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"endDate\": \"2025-12-31\"\n}" }
+          }
+        },
+        {
+          "name": "Get Employee Audit Log",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/employees/{{employeeId}}/audit?page=1&limit=10"
+          }
+        },
+        {
+          "name": "List Departments",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/employees/departments" }
+        },
+        {
+          "name": "List Positions",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/employees/positions" }
+        },
+        {
+          "name": "List Work Locations",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/employees/work-locations" }
+        },
+        {
+          "name": "Get My Notifications",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/employees/me/notifications?unreadOnly=false"
+          }
+        },
+        {
+          "name": "Mark Notifications Read",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/employees/me/notifications/read",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"ids\": [1, 2, 3]\n}" }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🕐 Time & Attendance",
+      "item": [
+        {
+          "name": "Clock In (Image 2 — Quick Action)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Clock-in successful (201)', () => pm.response.to.have.status(201));",
+                "const data = pm.response.json().data;",
+                "pm.test('CheckInTime recorded', () => pm.expect(data.CheckInTime).to.exist);",
+                "pm.collectionVariables.set('attendanceId', data.AttendanceID);"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/attendance/checkin",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Arrived from external meeting\"\n}" }
+          },
+          "_thesis_note": "Maps to the green 'Clock In' button in Image 2. Records check-in time, calculates lateness against shift start time, and sends a notification."
+        },
+        {
+          "name": "Clock In — FAIL: Already Checked In",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/attendance/checkin",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" }
+          },
+          "_expected": "400 ALREADY_CHECKED_IN"
+        },
+        {
+          "name": "Clock Out",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Clock-out successful', () => pm.response.to.have.status(200));",
+                "const data = pm.response.json().data;",
+                "pm.test('WorkedHours calculated', () => pm.expect(data.WorkedHours).to.be.a('number'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/attendance/checkout",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" }
+          }
+        },
+        {
+          "name": "Get Today Status (Dashboard Current Status)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/attendance/me/today"
+          },
+          "_thesis_note": "Powers the 'Current Status: Clocked In/Out' section (Image 2) and Today's Schedule card showing shift times."
+        },
+        {
+          "name": "Get KPIs (Image 2 — 4 KPI Cards)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('KPIs returned', () => pm.response.to.have.status(200));",
+                "const d = pm.response.json().data;",
+                "pm.test('Has thisWeekHours', () => pm.expect(d.thisWeekHours).to.be.a('number'));",
+                "pm.test('Has onTimeRate', () => pm.expect(d.onTimeRate).to.be.a('number'));",
+                "pm.test('Has pendingRequests', () => pm.expect(d.pendingRequests).to.be.a('number'));",
+                "pm.test('Has daysToPayroll', () => pm.expect(d.daysToPayroll).to.be.a('number'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/attendance/me/kpis"
+          }
+        },
+        {
+          "name": "Get Recent Activity (Image 2 feed)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/attendance/me/recent-activity?limit=5"
+          }
+        },
+        {
+          "name": "Get Attendance Calendar (Month View)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/attendance/me/calendar?year=2025&month=3"
+          }
+        },
+        {
+          "name": "Get Attendance Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/attendance/me/summary?year=2025&month=3"
+          }
+        },
+        {
+          "name": "Submit Correction Request (Image 2 — Submit Correction)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Correction submitted (201)', () => pm.response.to.have.status(201));",
+                "pm.test('Status is Pending', () => pm.expect(pm.response.json().data.Status).to.eql('Pending'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/attendance/{{attendanceId}}/corrections",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"CorrectedCheckIn\": \"2025-03-15T09:00:00.000Z\",\n  \"CorrectedCheckOut\": \"2025-03-15T17:30:00.000Z\",\n  \"Reason\": \"System failure prevented automatic check-in. Was present at 9 AM as confirmed by supervisor.\"\n}"
+            }
+          },
+          "_thesis_note": "Maps to the yellow 'Submit Correction' button in Image 2. Sends the correction to the Manager Inbox for review."
+        },
+        {
+          "name": "Submit Correction — FAIL: No Fields Provided",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/attendance/{{attendanceId}}/corrections",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"Reason\": \"Test correction\"\n}" }
+          },
+          "_expected": "422 VALIDATION_ERROR — at least one of CorrectedCheckIn or CorrectedCheckOut required"
+        },
+        {
+          "name": "List All Corrections (Manager Inbox)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/attendance/corrections?status=Pending"
+          }
+        },
+        {
+          "name": "Approve Correction Request",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/attendance/corrections/1/review",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"Status\": \"Approved\",\n  \"ReviewNote\": \"Confirmed with supervisor. Times adjusted.\"\n}" }
+          }
+        },
+        {
+          "name": "Submit Overtime Request",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/attendance/overtime",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 1,\n  \"OvertimeDate\": \"2025-03-20\",\n  \"EstimatedHours\": 1.5,\n  \"IsNighttime\": false,\n  \"Reason\": \"Project deadline — must complete data migration\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Submit Overtime — FAIL: Exceeds 2-Hour Limit",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/attendance/overtime",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"EmployeeID\": 1,\n  \"OvertimeDate\": \"2025-03-20\",\n  \"EstimatedHours\": 3,\n  \"Reason\": \"Extra work\"\n}" }
+          },
+          "_expected": "422 VALIDATION_ERROR — Overtime cannot exceed 2 hours per day (Egyptian Labor Law)"
+        },
+        {
+          "name": "Approve Overtime Request",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/attendance/overtime/1/approve",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"approved\": true\n}" }
+          }
+        },
+        {
+          "name": "Create Manual Attendance (HR)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/attendance/manual",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 1,\n  \"AttendanceDate\": \"2025-03-10\",\n  \"CheckInTime\": \"2025-03-10T09:00:00.000Z\",\n  \"CheckOutTime\": \"2025-03-10T17:00:00.000Z\",\n  \"Status\": \"Present\",\n  \"Notes\": \"Manual entry — system was offline\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Generate Attendance Summary (Payroll Prep)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/attendance/summary/{{employeeId}}/2025/3/generate"
+          },
+          "_thesis_note": "Called by the Payroll module before processing to ensure attendance data is aggregated. Creates/refreshes AttendanceSummary record linked to PayrollEntry."
+        },
+        {
+          "name": "List Shifts",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/attendance/shifts" }
+        },
+        {
+          "name": "Assign Shift to Employee",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/attendance/shifts/assign",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 1,\n  \"ShiftID\": 1,\n  \"EffectiveFrom\": \"2025-01-01\",\n  \"EffectiveTo\": null\n}"
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🌴 Leave Management",
+      "item": [
+        {
+          "name": "Get Leave Dashboard (Image 4)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Dashboard loaded (200)', () => pm.response.to.have.status(200));",
+                "const d = pm.response.json().data;",
+                "pm.test('Has balanceCards', () => pm.expect(d.balanceCards).to.be.an('array'));",
+                "pm.test('Has upcomingLeaves', () => pm.expect(d.upcomingLeaves).to.be.an('array'));",
+                "pm.test('Has pendingRequests', () => pm.expect(d.pendingRequests).to.be.an('array'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/leave/me/dashboard"
+          },
+          "_thesis_note": "Powers the entire Leave Dashboard (Image 4). Returns: 4 balance cards (Annual 17/25, Sick 12/15, Emergency 4/5, Sabbatical 180/180), upcoming leaves section, and pending requests with status badges."
+        },
+        {
+          "name": "Submit Leave Request (Annual)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Leave submitted (201)', () => pm.response.to.have.status(201));",
+                "const d = pm.response.json().data;",
+                "pm.collectionVariables.set('leaveRequestId', d.LeaveRequestID);",
+                "pm.test('Status is PendingManager', () => pm.expect(d.Status).to.eql('PendingManager'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/leave/requests",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"LeaveTypeID\": 1,\n  \"StartDate\": \"2025-04-10\",\n  \"EndDate\": \"2025-04-14\",\n  \"IsHalfDay\": false,\n  \"Reason\": \"Annual family vacation\"\n}"
+            }
+          },
+          "_thesis_note": "Maps to the 'Request Leave' tab (Image 4). Validates: policy eligibility, tenure, notice period, balance sufficiency, overlapping requests. Creates approval records automatically."
+        },
+        {
+          "name": "Submit Sick Leave (with document required)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/leave/requests",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"LeaveTypeID\": 2,\n  \"StartDate\": \"2025-03-20\",\n  \"EndDate\": \"2025-03-22\",\n  \"IsHalfDay\": false,\n  \"Reason\": \"Fever and respiratory illness\",\n  \"AttachmentURL\": \"https://storage.university.edu/medical-cert-2025.pdf\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Submit Half-Day Leave",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/leave/requests",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"LeaveTypeID\": 1,\n  \"StartDate\": \"2025-04-20\",\n  \"EndDate\": \"2025-04-20\",\n  \"IsHalfDay\": true,\n  \"HalfDayPortion\": \"Morning\",\n  \"Reason\": \"Medical appointment\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Submit Leave — FAIL: Insufficient Balance",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/leave/requests",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"LeaveTypeID\": 1,\n  \"StartDate\": \"2025-04-01\",\n  \"EndDate\": \"2025-05-31\",\n  \"Reason\": \"Extended leave\"\n}" }
+          },
+          "_expected": "400 INSUFFICIENT_BALANCE — requested days exceed remaining balance"
+        },
+        {
+          "name": "Submit Leave — FAIL: Overlapping Request",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/leave/requests",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"LeaveTypeID\": 1,\n  \"StartDate\": \"2025-04-12\",\n  \"EndDate\": \"2025-04-15\",\n  \"Reason\": \"Overlap test\"\n}" }
+          },
+          "_expected": "409 LEAVE_OVERLAP — conflicts with existing leave request"
+        },
+        {
+          "name": "Get Leave Request Details",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/leave/requests/{{leaveRequestId}}"
+          }
+        },
+        {
+          "name": "Manager Approves Leave",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Approval processed', () => pm.response.to.have.status(200));",
+                "pm.test('Status advanced', () => pm.expect(['PendingHR','Approved']).to.include(pm.response.json().data.status));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/leave/requests/{{leaveRequestId}}/approve",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Decision\": \"Approved\",\n  \"Comments\": \"Approved. Enjoy your time off.\"\n}"
+            }
+          },
+          "_thesis_note": "Multi-level approval: Manager approval advances status to PendingHR. Final HR approval sets status to Approved and triggers: (1) LeaveBalance update, (2) AttendanceRecord overrides, (3) Employee notification."
+        },
+        {
+          "name": "Manager Rejects Leave",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/leave/requests/{{leaveRequestId}}/approve",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"Decision\": \"Rejected\",\n  \"Comments\": \"Team project deadline conflicts with requested dates. Please reschedule.\"\n}" }
+          }
+        },
+        {
+          "name": "Delegate Approval to Another Manager",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/leave/requests/{{leaveRequestId}}/delegate",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"DelegateTo\": 3,\n  \"Comments\": \"I am on leave myself. Delegating to Dr. Wilson.\"\n}" }
+          }
+        },
+        {
+          "name": "Cancel Leave Request (Employee)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/leave/requests/{{leaveRequestId}}/cancel",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"CancelReason\": \"Plans changed. No longer need the days off.\"\n}" }
+          }
+        },
+        {
+          "name": "Get Manager Inbox (Pending Approvals)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/leave/inbox"
+          }
+        },
+        {
+          "name": "Get My Leave Balances",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Balances returned', () => pm.response.to.have.status(200));",
+                "const balances = pm.response.json().data;",
+                "pm.test('Includes RemainingDays', () => balances.forEach(b => pm.expect(b.RemainingDays).to.be.a('number')));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/leave/me/balances?year=2025"
+          }
+        },
+        {
+          "name": "Manual Balance Adjustment (HR)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/leave/balances/adjust",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"EmployeeID\": 1,\n  \"LeaveTypeID\": 1,\n  \"BalanceYear\": 2025,\n  \"AdjustedDays\": 2,\n  \"Reason\": \"Compensation for working on official holiday - Easter Sunday\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Leave History (Image 4 — Leave History Tab)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/leave/me/history?year=2025"
+          }
+        },
+        {
+          "name": "Get Payroll Impact (Leave→Payroll Integration)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/leave/payroll-impact/{{employeeId}}?periodStart=2025-03-01&periodEnd=2025-03-31"
+          },
+          "_thesis_note": "Critical cross-module integration point. Returns unpaidLeaveDays and paidLeaveDays for a pay period. Called by the Payroll module to compute UnpaidLeaveDeduction in PayrollEntry."
+        },
+        {
+          "name": "List Leave Types",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/leave/types" }
+        },
+        {
+          "name": "Create Leave Type (Admin)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/leave/types",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"LeaveTypeCode\": \"MATERNITY\",\n  \"LeaveTypeName\": \"Maternity Leave\",\n  \"IsPaid\": true,\n  \"RequiresApproval\": true,\n  \"RequiresDocument\": true,\n  \"DisplayColor\": \"#EC4899\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Leave Policies",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/leave/policies?isActive=true" }
+        },
+        {
+          "name": "Create Leave Policy",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/leave/policies",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"PolicyName\": \"Annual Leave - Full Time 2025\",\n  \"LeaveTypeID\": 1,\n  \"EmploymentType\": \"Full-Time\",\n  \"MaxDaysPerYear\": 25,\n  \"AccrualRatePerMonth\": 2.08,\n  \"CarryOverLimit\": 10,\n  \"CarryOverYears\": 2,\n  \"MinTenureMonths\": 6,\n  \"NoticePeriodDays\": 3,\n  \"AllowHalfDay\": true,\n  \"EffectiveFrom\": \"2025-01-01\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Holidays",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/leave/holidays?year=2025" }
+        },
+        {
+          "name": "Create Holiday",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/leave/holidays",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"HolidayName\": \"Eid Al-Adha\",\n  \"HolidayDate\": \"2025-06-06\",\n  \"IsRecurringYearly\": false,\n  \"WorkLocationID\": null,\n  \"PayMultiplier\": 3.00\n}"
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "💰 Payroll",
+      "item": [
+        {
+          "name": "Get Payroll Dashboard (Image 3)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Dashboard loaded', () => pm.response.to.have.status(200));",
+                "const d = pm.response.json().data;",
+                "pm.test('Has totalPayrollRuns', () => pm.expect(d.totalPayrollRuns).to.be.a('number'));",
+                "pm.test('Has activeExceptions', () => pm.expect(d.activeExceptions).to.be.a('number'));",
+                "pm.test('Has totalPayrollValue', () => pm.expect(d.totalPayrollValue).to.be.a('number'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/payroll/dashboard"
+          },
+          "_thesis_note": "Powers Image 3 dashboard. Returns: Total Payroll Runs (3), Active Exceptions (2), Total Payroll Value ($609,000), Total Employees (3), and Recent Activity feed."
+        },
+        {
+          "name": "Create Payroll Run (Draft)",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Run created (201)', () => pm.response.to.have.status(201));",
+                "pm.collectionVariables.set('payrollRunId', pm.response.json().data.PayrollRunID);"
+              ]
+            }
+          }],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/payroll/runs",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"PolicyID\": 1,\n  \"PeriodYear\": 2025,\n  \"PeriodMonth\": 3\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Payroll Run — FAIL: Duplicate Period",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/payroll/runs",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"PolicyID\": 1,\n  \"PeriodYear\": 2025,\n  \"PeriodMonth\": 3\n}" }
+          },
+          "_expected": "409 DUPLICATE_RUN — run already exists for this period"
+        },
+        {
+          "name": "Process Payroll Run (Calculate All Employees)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/payroll/runs/{{payrollRunId}}/process"
+          },
+          "_thesis_note": "The core calculation endpoint. For each active employee: (1) generates attendance summary, (2) fetches leave impact, (3) runs full calculation engine (base salary + allowances + overtime - absences - unpaid leave - SI - tax), (4) creates PayrollEntry + line items. Returns processing summary."
+        },
+        {
+          "name": "Get Payroll Run (with Entries)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/payroll/runs/{{payrollRunId}}"
+          }
+        },
+        {
+          "name": "List Payroll Runs",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/payroll/runs?year=2025&status=PendingApproval"
+          }
+        },
+        {
+          "name": "Approve Payroll Run",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/payroll/runs/{{payrollRunId}}/approve"
+          }
+        },
+        {
+          "name": "Approve — FAIL: Open Exceptions Exist",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/payroll/runs/{{payrollRunId}}/approve"
+          },
+          "_expected": "400 OPEN_EXCEPTIONS — must resolve/waive all exceptions before approving"
+        },
+        {
+          "name": "Finalize Payroll Run (Generate Payslips)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/payroll/runs/{{payrollRunId}}/finalize"
+          },
+          "_thesis_note": "Generates a Payslip record for every finalized entry. Sends PAY_PAYSLIP_READY notifications to all employees. Changes run status to Finalized."
+        },
+        {
+          "name": "Tax Calculator Preview",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('Tax calculated', () => pm.response.to.have.status(200));",
+                "const d = pm.response.json().data;",
+                "pm.test('Has annualTax', () => pm.expect(d.annualTax).to.be.a('number'));",
+                "pm.test('Has effectiveRate', () => pm.expect(d.effectiveRate).to.exist);"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/payroll/tax-preview?annualIncome=180000&year=2025"
+          },
+          "_thesis_note": "Demonstrates Egyptian progressive income tax (Law 91/2005 + 2024 amendments). annualIncome=180,000 → taxable after 20k exemption = 160,000 → tax: 0% on 15k + 2.5% on 15k + 10% on 15k + 15% on 15k + 20% on 100k = EGP 25,375/year → monthly ~2,115 EGP"
+        },
+        {
+          "name": "Get My Payslips (Employee Portal)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/payroll/me/payslips?page=1&limit=12"
+          }
+        },
+        {
+          "name": "Get Single Payslip (Detailed Breakdown)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/payroll/payslips/1"
+          }
+        },
+        {
+          "name": "List Exceptions (Handle Exceptions — Image 3)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/payroll/exceptions?status=Open"
+          }
+        },
+        {
+          "name": "Resolve Exception",
+          "request": {
+            "method": "PATCH",
+            "url": "{{base_url}}/api/v1/payroll/exceptions/1/resolve",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"Status\": \"Waived\",\n  \"ResolutionNotes\": \"Employee is a trainee intern. Minimum wage waiver approved by HR Director per policy exemption.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Generate Bank File",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/payroll/bank-files/{{payrollRunId}}/generate",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"fileFormat\": \"CSV\"\n}" }
+          }
+        },
+        {
+          "name": "List Bank Files",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/payroll/bank-files" }
+        },
+        {
+          "name": "List Pay Grades",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/payroll/config/pay-grades" }
+        },
+        {
+          "name": "List Pay Types",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/payroll/config/pay-types" }
+        },
+        {
+          "name": "List Overtime Rules",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/payroll/config/overtime-rules" }
+        },
+        {
+          "name": "List Allowances",
+          "request": { "method": "GET", "url": "{{base_url}}/api/v1/payroll/config/allowances" }
+        },
+        {
+          "name": "Create Payroll Policy",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/payroll/config/policies",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"PolicyName\": \"Standard Monthly Payroll 2025\",\n  \"PayPeriod\": \"Monthly\",\n  \"CutoffDay\": 25,\n  \"PaymentDay\": 30,\n  \"OvertimeRuleID\": 1,\n  \"TaxCalculationMethod\": \"Standard\",\n  \"MaxMonthlyDeductionDays\": 5,\n  \"MinimumWageEGP\": 6000.00,\n  \"AnnualIncrementRatePct\": 3.00,\n  \"IsActive\": true\n}"
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "🔒 Authorization Tests",
+      "item": [
+        {
+          "name": "FAIL: Access without token",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/employees",
+            "auth": { "type": "noauth" }
+          },
+          "_expected": "401 UNAUTHORIZED"
+        },
+        {
+          "name": "FAIL: Employee accesses HR-only endpoint",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/payroll/runs",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"PolicyID\": 1,\n  \"PeriodYear\": 2025,\n  \"PeriodMonth\": 4\n}" }
+          },
+          "_expected": "403 FORBIDDEN — Employee role cannot create payroll runs"
+        },
+        {
+          "name": "FAIL: Employee accesses another employee's data",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/employees/99"
+          },
+          "_expected": "403 FORBIDDEN — can only access your own data"
+        },
+        {
+          "name": "FAIL: Expired token",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/employees/me",
+            "header": [{
+              "key": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsImV4cCI6MTYwMDAwMDAwMH0.invalid"
+            }]
+          },
+          "_expected": "401 TOKEN_EXPIRED"
+        }
+      ]
+    },
+
+    {
+      "name": "🏥 Health & System",
+      "item": [
+        {
+          "name": "Health Check",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "exec": [
+                "pm.test('API is healthy', () => pm.response.to.have.status(200));",
+                "pm.test('Status is healthy', () => pm.expect(pm.response.json().data.status).to.eql('healthy'));"
+              ]
+            }
+          }],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health",
+            "auth": { "type": "noauth" }
+          }
+        },
+        {
+          "name": "FAIL: Unknown Route (404)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/nonexistent-route",
+            "auth": { "type": "noauth" }
+          },
+          "_expected": "404 NOT_FOUND"
+        }
+      ]
+    }
+  ]
+}
