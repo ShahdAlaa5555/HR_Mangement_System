@@ -5,7 +5,6 @@ import {
   TrendingUp, TrendingDown,
 } from 'lucide-react';
 import { attendanceAPI, leaveAPI, payrollAPI } from '../../api/services';
-import { unwrap, safeArray } from '../../api/services';
 import { SkeletonCard } from '../../components/common';
 import { useAuth } from '../../context/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -44,25 +43,21 @@ export default function DashboardPage() {
       payrollAPI.getDashboard().catch(() => null),
       attendanceAPI.getRecentActivity(),
     ]).then(([k, t, b, p, a]) => {
-      if (k.status === 'fulfilled') {
-        const d = unwrap(k.value);
-        setKpis(d);
-      }
-      if (t.status === 'fulfilled') {
-        const d = unwrap(t.value);
-        setToday(d);
-      }
+      console.log('🏠 DASHBOARD KPIs:', k.value?.data);
+      console.log('🏠 DASHBOARD TODAY:', t.value?.data);
+      console.log('🏠 DASHBOARD BALANCES:', b.value?.data);
+      console.log('🏠 DASHBOARD ACTIVITY:', a.value?.data);
+
+      if (k.status === 'fulfilled') setKpis(k.value?.data);
+      if (t.status === 'fulfilled') setToday(t.value?.data);
       if (b.status === 'fulfilled') {
-        // balances may be at payload.balances or payload itself
-        const arr = safeArray(b.value, ['balances', 'leaveBalances', 'data']);
-        setBalances(arr);
+        const d = b.value?.data;
+        setBalances(Array.isArray(d) ? d : d?.balances || d?.leaveBalances || []);
       }
-      if (p.status === 'fulfilled' && p.value) {
-        setPayDash(unwrap(p.value));
-      }
+      if (p.status === 'fulfilled' && p.value) setPayDash(p.value?.data);
       if (a.status === 'fulfilled') {
-        const arr = safeArray(a.value, ['activities', 'records', 'data']);
-        setActivity(arr);
+        const d = a.value?.data;
+        setActivity(Array.isArray(d) ? d : d?.activities || d?.records || []);
       }
       setLoading(false);
     });
@@ -95,10 +90,21 @@ export default function DashboardPage() {
 
       {/* KPI Row */}
       <div className="grid-4" style={{ marginBottom: 28 }}>
-        <KpiCard loading={loading} icon={UserCheck}   color="var(--blue)"   label="Today's Status"    value={today?.status || (today?.checkedIn ? 'Present' : '—')} />
-        <KpiCard loading={loading} icon={Timer}        color="var(--green)"  label="Attendance Rate"   value={kpis?.attendanceRate ? `${kpis.attendanceRate}%` : kpis?.presentToday ?? '—'} trendLabel="This month" />
-        <KpiCard loading={loading} icon={Calendar}     color="var(--amber)"  label="Leave Balance"     value={balances.length > 0 ? `${balances[0]?.remainingDays ?? balances[0]?.remaining ?? '—'} days` : '—'} trendLabel={balances[0]?.leaveTypeName || balances[0]?.name || ''} />
-        <KpiCard loading={loading} icon={DollarSign}   color="var(--purple)" label="Payroll Runs"      value={payDash?.activeRuns ?? payDash?.totalRuns ?? '—'} trendLabel="Active runs" />
+        <KpiCard loading={loading} icon={UserCheck} color="var(--blue)"
+          label="Today's Status"
+          value={today?.currentStatus || '—'} />
+        <KpiCard loading={loading} icon={Timer} color="var(--green)"
+          label="On-Time Rate"
+          value={kpis?.onTimeRate != null ? `${Number(kpis.onTimeRate).toFixed(0)}%` : '—'}
+          trendLabel="This month" />
+        <KpiCard loading={loading} icon={Calendar} color="var(--amber)"
+          label="Leave Balance"
+          value={balances.length > 0 ? `${balances[0]?.remainingDays ?? balances[0]?.RemainingDays ?? '—'} days` : '—'}
+          trendLabel={balances[0]?.leaveTypeName || balances[0]?.LeaveType?.LeaveTypeName || ''} />
+        <KpiCard loading={loading} icon={DollarSign} color="var(--purple)"
+          label="Days to Payroll"
+          value={kpis?.daysToPayroll != null ? `${kpis.daysToPayroll}` : '—'}
+          trendLabel="Until next pay" />
       </div>
 
       {/* Charts Row */}
@@ -138,8 +144,8 @@ export default function DashboardPage() {
               <div className="card-subtitle">Your check-in status</div>
             </div>
             {today && (
-              <span className={`badge ${today.checkedIn || today.checkInTime ? 'badge-approved' : 'badge-pending'}`}>
-                {today.checkedIn || today.checkInTime ? 'Checked In' : today.status || 'Not Checked In'}
+              <span className={`badge ${today.currentStatus === 'Clocked In' ? 'badge-approved' : today.currentStatus === 'Clocked Out' ? 'badge-info' : 'badge-pending'}`}>
+                {today.currentStatus || 'Not Clocked In'}
               </span>
             )}
           </div>
@@ -147,15 +153,16 @@ export default function DashboardPage() {
             <div className="skeleton" style={{ height: 120 }} />
           ) : today ? (
             [
-              { label: 'Check-In',     value: today.checkInTime  || today.checkedInAt  || '—' },
-              { label: 'Check-Out',    value: today.checkOutTime || today.checkedOutAt || '—' },
-              { label: 'Hours Worked', value: today.hoursWorked  ? `${today.hoursWorked}h` : '—' },
-              { label: 'Status',       value: today.status       || (today.checkedIn ? 'Present' : 'Absent') },
-              { label: 'Shift',        value: today.shiftName    || today.shift || '—' },
+              { label: 'Status',        value: today.currentStatus },
+              { label: 'Check-In',      value: today.checkInTime  ? new Date(today.checkInTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})  : '—' },
+              { label: 'Check-Out',     value: today.checkOutTime ? new Date(today.checkOutTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : '—' },
+              { label: 'Hours Worked',  value: today.workedHours  && Number(today.workedHours) > 0 ? `${Number(today.workedHours).toFixed(1)}h` : '—' },
+              { label: 'Shift',         value: today.todayShift?.shiftName || '—' },
+              { label: 'Shift Hours',   value: today.todayShift ? `${today.todayShift.startTime} – ${today.todayShift.endTime}` : '—' },
             ].map(({ label, value }) => (
               <div className="info-row" key={label}>
                 <span className="info-row-label">{label}</span>
-                <span className="info-row-value">{value}</span>
+                <span className="info-row-value">{value || '—'}</span>
               </div>
             ))
           ) : (
@@ -175,21 +182,69 @@ export default function DashboardPage() {
           <div className="skeleton" style={{ height: 120 }} />
         ) : activity.length > 0 ? (
           <div className="timeline" style={{ maxHeight: 300, overflowY: 'auto' }}>
-            {activity.slice(0, 8).map((item, i) => (
-              <div className="timeline-item" key={i}>
-                <div className="timeline-dot" style={{ background: COLORS[i % COLORS.length] }} />
-                <div className="timeline-line" />
-                <div className="timeline-content">
-                  <div className="timeline-title">
-                    {item.description || item.action || item.message || item.type || JSON.stringify(item)}
-                  </div>
-                  <div className="timeline-meta">
-                    {item.employeeName && `${item.employeeName} · `}
-                    {item.createdAt ? new Date(item.createdAt).toLocaleString() : item.time || ''}
+            {activity.slice(0, 8).map((item, i) => {
+              // Build a human-friendly title from whatever shape the item has
+              const getTitle = (item) => {
+                // Explicit description fields — use as-is
+                if (item.description) return item.description;
+                if (item.action)      return item.action;
+                if (item.message)     return item.message;
+
+                // Attendance record shape from the API
+                if (item.AttendanceDate || item.attendanceDate || item.CheckInTime) {
+                  const status   = item.Status        || item.status        || 'Present';
+                  const checkIn  = item.CheckInTime   || item.checkInTime;
+                  const checkOut = item.CheckOutTime  || item.checkOutTime;
+                  const hours    = item.WorkedHours   || item.workedHours   || item.hoursWorked;
+                  const shift    = item.Shift?.ShiftName || item.shift?.shiftName || item.shiftName;
+
+                  let title = `Attendance marked as ${status}`;
+                  if (checkIn) {
+                    const t = new Date(checkIn);
+                    if (!isNaN(t)) title += ` · Check-in ${t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+                  }
+                  if (checkOut) {
+                    const t = new Date(checkOut);
+                    if (!isNaN(t)) title += ` · Check-out ${t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+                  }
+                  if (hours && Number(hours) > 0) title += ` · ${Number(hours).toFixed(1)}h worked`;
+                  if (shift) title += ` (${shift})`;
+                  return title;
+                }
+
+                // Leave request shape
+                if (item.LeaveTypeName || item.leaveTypeName || item.StartDate) {
+                  const type   = item.LeaveTypeName || item.leaveTypeName || 'Leave';
+                  const status = item.Status        || item.status        || '';
+                  return `${type} request ${status}`.trim();
+                }
+
+                // Generic fallback — pick any readable string field instead of JSON
+                const readable = Object.values(item).find(v => typeof v === 'string' && v.length > 2 && v.length < 120);
+                return readable || 'Activity recorded';
+              };
+
+              const getTime = (item) => {
+                const raw = item.createdAt || item.CreatedAt || item.AttendanceDate || item.attendanceDate || item.time;
+                if (!raw) return '';
+                const d = new Date(raw);
+                return isNaN(d) ? '' : d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+              };
+
+              return (
+                <div className="timeline-item" key={i}>
+                  <div className="timeline-dot" style={{ background: COLORS[i % COLORS.length] }} />
+                  <div className="timeline-line" />
+                  <div className="timeline-content">
+                    <div className="timeline-title">{getTitle(item)}</div>
+                    <div className="timeline-meta">
+                      {item.employeeName && `${item.employeeName} · `}
+                      {getTime(item)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: 30 }}>

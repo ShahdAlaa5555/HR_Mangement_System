@@ -18,9 +18,8 @@ export function AuthProvider({ children }) {
     }
     authAPI.me()
       .then(({ data }) => {
-        // Backend: { success, data: { employee } } or { success, data: employee }
-        const payload = data?.data || data;
-        const u = payload.employee || payload.user || payload;
+        // Interceptor unwrapped envelope → data.employee is the profile
+        const u = data.employee || data.user || data;
         setUser(u);
       })
       .catch(() => {
@@ -33,22 +32,17 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = useCallback(async (email, password) => {
-    const res = await authAPI.login({ email, password });
-
-    // Backend wraps response: { success, data: { accessToken, refreshToken, employee } }
-    const payload = res.data?.data || res.data;
-
-    const accessToken  = payload.accessToken;
-    const refreshToken = payload.refreshToken || '';
-    const profile      = payload.employee || payload.user || null;
+    const { data } = await authAPI.login({ email, password });
+    // Interceptor already unwrapped envelope → data is the payload directly
+    const accessToken  = data.accessToken;
+    const refreshToken = data.refreshToken || '';
+    const profile      = data.employee || data.user || null;
 
     if (!accessToken) throw new Error('No access token returned from server.');
-
     localStorage.setItem('accessToken',  accessToken);
     localStorage.setItem('refreshToken', refreshToken);
-
     setUser(profile || { email });
-    return payload;
+    return data;
   }, []);
 
   const logout = useCallback(() => {

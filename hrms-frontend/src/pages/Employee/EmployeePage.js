@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Search, MoreHorizontal, Edit2,
   UserX, Eye, Mail, Phone,
-  ChevronLeft, ChevronRight, Copy, CheckCheck, KeyRound,
+  ChevronLeft, ChevronRight, Copy, CheckCheck, Settings,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { employeeAPI } from '../../api/services';
@@ -102,6 +102,133 @@ function CredentialsDialog({ data, onClose }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ── Positions Manager Modal ── */
+const DEFAULT_POSITIONS = [
+  { code: 'PROF',     title: 'Professor'                },
+  { code: 'ASSOC',    title: 'Associate Professor'       },
+  { code: 'ASST',     title: 'Assistant Professor'       },
+  { code: 'LECT',     title: 'Lecturer'                  },
+  { code: 'TA',       title: 'Teaching Assistant'        },
+  { code: 'RA',       title: 'Research Assistant'        },
+  { code: 'HEAD',     title: 'Department Head'           },
+  { code: 'DEAN',     title: 'Dean'                      },
+  { code: 'HR-MGR',   title: 'HR Manager'                },
+  { code: 'HR-SPEC',  title: 'HR Specialist'             },
+  { code: 'IT-ENG',   title: 'IT Engineer'               },
+  { code: 'FIN',      title: 'Finance Officer'           },
+  { code: 'ADMIN',    title: 'Administrative Officer'    },
+  { code: 'SEC',      title: 'Secretary'                 },
+  { code: 'LAB-TECH', title: 'Lab Technician'            },
+  { code: 'LIB',      title: 'Librarian'                 },
+  { code: 'SECURITY', title: 'Security Officer'          },
+  { code: 'MAINT',    title: 'Maintenance Staff'         },
+];
+
+function PositionsManager({ open, onClose, positions, onRefresh }) {
+  const [newCode,  setNewCode]  = useState('');
+  const [newTitle, setNewTitle] = useState('');
+  const [saving,   setSaving]   = useState(false);
+  const [seeding,  setSeeding]  = useState(false);
+
+  const create = async (code, title) => {
+    await employeeAPI.createPosition({ PositionCode: code.toUpperCase(), PositionTitle: title, IsActive: true });
+  };
+
+  const handleAdd = async () => {
+    if (!newCode.trim() || !newTitle.trim()) { toast.error('Both code and title are required'); return; }
+    setSaving(true);
+    try {
+      await create(newCode.trim(), newTitle.trim());
+      toast.success(`Position "${newTitle}" added`);
+      setNewCode(''); setNewTitle('');
+      onRefresh();
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Failed to add position');
+    } finally { setSaving(false); }
+  };
+
+  const handleSeedAll = async () => {
+    setSeeding(true);
+    const existingCodes = positions.map(p => (p.PositionCode || p.positionCode || '').toUpperCase());
+    const toAdd = DEFAULT_POSITIONS.filter(p => !existingCodes.includes(p.code.toUpperCase()));
+    if (toAdd.length === 0) { toast('All default positions already exist'); setSeeding(false); return; }
+    let added = 0;
+    for (const p of toAdd) {
+      try { await create(p.code, p.title); added++; } catch {}
+    }
+    toast.success(`Added ${added} positions`);
+    onRefresh();
+    setSeeding(false);
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Manage Positions" size="modal-lg">
+      {/* Seed button */}
+      <div style={{
+        padding: '12px 16px', marginBottom: 20,
+        background: 'var(--blue-dim)', border: '1px solid rgba(59,130,246,0.2)',
+        borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>Quick Setup</div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+            Add {DEFAULT_POSITIONS.length} standard university positions at once
+          </div>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={handleSeedAll} disabled={seeding}>
+          {seeding ? <InlineSpinner /> : '⚡ Add All Defaults'}
+        </button>
+      </div>
+
+      {/* Add custom position */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <div style={{ flex: '0 0 130px' }}>
+          <label className="form-label">Code</label>
+          <input className="form-input" placeholder="e.g. PROF" value={newCode}
+            onChange={e => setNewCode(e.target.value.toUpperCase())}
+            style={{ fontFamily: 'monospace' }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <label className="form-label">Position Title</label>
+          <input className="form-input" placeholder="e.g. Professor" value={newTitle}
+            onChange={e => setNewTitle(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleAdd()} />
+        </div>
+        <div style={{ alignSelf: 'flex-end' }}>
+          <button className="btn btn-primary" onClick={handleAdd} disabled={saving}>
+            {saving ? <InlineSpinner /> : <><Plus size={15} /> Add</>}
+          </button>
+        </div>
+      </div>
+
+      {/* Existing positions */}
+      <div style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        Current Positions ({positions.length})
+      </div>
+      <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}>
+        {positions.length === 0 ? (
+          <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            No positions yet — use "Add All Defaults" above
+          </div>
+        ) : positions.map((p, i) => {
+          const code  = p.PositionCode  || p.positionCode  || '—';
+          const title = p.PositionTitle || p.positionTitle || p.name || '—';
+          return (
+            <div key={i} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '10px 14px', borderBottom: '1px solid var(--border-light)',
+            }}>
+              <span style={{ fontWeight: 500 }}>{title}</span>
+              <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-muted)',
+                background: 'var(--bg-elevated)', padding: '2px 8px', borderRadius: 4 }}>{code}</span>
+            </div>
+          );
+        })}
+      </div>
+    </Modal>
   );
 }
 
@@ -335,15 +462,15 @@ export default function EmployeePage() {
   // Open row dropdown
   const [openMenu, setOpenMenu] = useState(null);
   // Success dialog — shows credentials to HR after creation
-  const [credentialsDialog, setCredentialsDialog] = useState(null); // { name, email, password }
+  const [credentialsDialog, setCredentialsDialog] = useState(null);
+  // Positions manager
+  const [positionsModal, setPositionsModal] = useState(false);
 
   // Load lookups once
   useEffect(() => {
-    const unwrap = (res) => { const o = res?.data; return (o && 'data' in o) ? o.data : o; };
-    const toArr  = (res, keys) => {
-      const p = unwrap(res);
-      if (Array.isArray(p)) return p;
-      for (const k of keys) if (Array.isArray(p?.[k])) return p[k];
+    const toArr = (data, keys) => {
+      if (Array.isArray(data)) return data;
+      for (const k of keys) if (Array.isArray(data?.[k])) return data[k];
       return [];
     };
     Promise.all([
@@ -351,33 +478,29 @@ export default function EmployeePage() {
       employeeAPI.getPositions(),
       employeeAPI.getWorkLocations(),
     ]).then(([d, p, l]) => {
-      const depts = toArr(d, ['departments','department','data','items']);
-      const posts  = toArr(p, ['positions','position','data','items']);
-      const locs   = toArr(l, ['locations','workLocations','workLocation','data','items']);
-      console.log('📋 Departments raw:', depts);
-      console.log('📋 Positions raw:',   posts);
-      console.log('📋 Locations raw:',   locs);
-      setDepartments(depts);
-      setPositions(posts);
-      setLocations(locs);
+      // Interceptor already unwrapped → res.data is the payload
+      setDepartments(toArr(d.data, ['departments','department','items']));
+      setPositions(toArr(p.data,   ['positions','position','items']));
+      setLocations(toArr(l.data,   ['locations','workLocations','items']));
+      console.log('📋 Departments:', d.data);
+      console.log('📋 Positions:',   p.data);
     }).catch(err => console.error('Lookup load failed:', err));
   }, []);
 
   const loadEmployees = useCallback(() => {
     setLoading(true);
-    const unwrap = (res) => { const o = res?.data; return (o && 'data' in o) ? o.data : o; };
     employeeAPI.list({
-      search:       search || undefined,
-      departmentId: deptFilter || undefined,
+      search:       search       || undefined,
+      departmentId: deptFilter   || undefined,
       status:       statusFilter || undefined,
       page,
       limit: LIMIT,
     })
-      .then((res) => {
-        const payload = unwrap(res);
-        const list = Array.isArray(payload) ? payload : payload?.employees || payload?.data || [];
+      .then(({ data }) => {
+        // Interceptor unwrapped → data is the payload
+        const list = Array.isArray(data) ? data : data?.employees || data?.data || [];
         setEmployees(list);
-        setTotal(payload?.total || payload?.count || list.length || 0);
+        setTotal(data?.total || data?.count || list.length || 0);
       })
       .catch(() => toast.error('Failed to load employees'))
       .finally(() => setLoading(false));
@@ -528,9 +651,14 @@ export default function EmployeePage() {
           <h1>Employees</h1>
           <p>{total} total employees</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>
-          <Plus size={16} /> Add Employee
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn-secondary" onClick={() => setPositionsModal(true)}>
+            <Settings size={15} /> Manage Positions
+          </button>
+          <button className="btn btn-primary" onClick={openCreate}>
+            <Plus size={16} /> Add Employee
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -767,7 +895,21 @@ export default function EmployeePage() {
         )}
       </Modal>
 
-      {/* Credentials Dialog — shown after successful employee creation */}
+      {/* Positions Manager */}
+      <PositionsManager
+        open={positionsModal}
+        onClose={() => setPositionsModal(false)}
+        positions={positions}
+        onRefresh={() => {
+          employeeAPI.getPositions().then((res) => {
+            const p = res.data?.data || res.data;
+            const arr = Array.isArray(p) ? p : p?.positions || p?.data || [];
+            setPositions(arr);
+          });
+        }}
+      />
+
+      {/* Credentials Dialog */}
       <CredentialsDialog
         data={credentialsDialog}
         onClose={() => setCredentialsDialog(null)}

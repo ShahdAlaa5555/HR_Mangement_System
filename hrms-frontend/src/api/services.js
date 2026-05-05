@@ -61,30 +61,39 @@ export const employeeAPI = {
   markNotificationsRead:(data) => api.patch('/employees/me/notifications/read', data),
 };
 
-// ─── ATTENDANCE ─────────────────────────────────────────────────────────────
-export const attendanceAPI = {
-  getDashboardKPIs:       ()       => api.get('/attendance/dashboard/kpis'),
-  getTodayStatus:         ()       => api.get('/attendance/dashboard/today'),
-  getRecentActivity:      ()       => api.get('/attendance/dashboard/recent-activity'),
-  checkIn:                (data)   => api.post('/attendance/check-in', data),
-  checkOut:               (data)   => api.post('/attendance/check-out', data),
-  list:                   (params) => api.get('/attendance', { params }),
-  createManual:           (data)   => api.post('/attendance/manual', data),
-  getCalendarMe:          (params) => api.get('/attendance/calendar/me', { params }),
-  getCalendar:            (id, p)  => api.get(`/attendance/calendar/${id}`, { params: p }),
-  getRecord:              (id)     => api.get(`/attendance/${id}`),
-  submitCorrection:       (id, d)  => api.post(`/attendance/${id}/corrections`, d),
-  listCorrections:        (p)      => api.get('/attendance/corrections', { params: p }),
-  reviewCorrection:       (id, d)  => api.patch(`/attendance/corrections/${id}`, d),
-  submitOvertime:         (data)   => api.post('/attendance/overtime', data),
-  approveOvertime:        (id, d)  => api.patch(`/attendance/overtime/${id}/decision`, d),
-  listShifts:             ()       => api.get('/attendance/shifts'),
-  assignShift:            (data)   => api.post('/attendance/shifts/assign', data),
-  getSummaryMe:           ()       => api.get('/attendance/summary/me'),
-  getSummary:             (id)     => api.get(`/attendance/summary/${id}`),
-  generateSummary:        (id,y,m) => api.post(`/attendance/summary/${id}/${y}/${m}/generate`),
-};
+// ─── ATTENDANCE (patched) ────────────────────────────────────────────────────
+// Drop-in replacement for the attendanceAPI block in src/api/services.js
+// One line added:  listOvertimeRequests  (was missing — manager inbox + employee view)
+// Naming/style kept identical to the rest of the file.
+// ─── ATTENDANCE (patched) ────────────────────────────────────────────────────
+// Drop-in replacement for the attendanceAPI block in src/api/services.js
+// One line added:  listOvertimeRequests  (was missing — manager inbox + employee view)
+// Naming/style kept identical to the rest of the file.
 
+export const attendanceAPI = {
+  getDashboardKPIs:       ()           => api.get('/attendance/dashboard/kpis'),
+  getTodayStatus:         ()           => api.get('/attendance/dashboard/today'),
+  getRecentActivity:      ()           => api.get('/attendance/dashboard/recent-activity'),
+  checkIn:                (data)       => api.post('/attendance/check-in', data),
+  checkOut:               (data)       => api.post('/attendance/check-out', data),
+  list:                   (params)     => api.get('/attendance', { params }),
+  createManual:           (data)       => api.post('/attendance/manual', data),
+  getCalendarMe:          (params)     => api.get('/attendance/calendar/me', { params }),
+  getCalendar:            (id, p)      => api.get(`/attendance/calendar/${id}`, { params: p }),
+  getRecord:              (id)         => api.get(`/attendance/${id}`),
+  submitCorrection:       (id, d)      => api.post(`/attendance/${id}/corrections`, d),
+  listCorrections:        (p)          => api.get('/attendance/corrections', { params: p }),       // manager only
+  listMyCorrections:      ()           => api.get('/attendance/corrections/me'),                   // employee self-view
+  reviewCorrection:       (id, d)      => api.patch(`/attendance/corrections/${id}`, d),
+  submitOvertime:         (data)       => api.post('/attendance/overtime', data),
+  listOvertimeRequests:   (params)     => api.get('/attendance/overtime', { params }),   // NEW
+  approveOvertime:        (id, d)      => api.patch(`/attendance/overtime/${id}/decision`, d),
+  listShifts:             ()           => api.get('/attendance/shifts'),
+  assignShift:            (data)       => api.post('/attendance/shifts/assign', data),
+  getSummaryMe:           (params)     => api.get('/attendance/summary/me', { params }),
+  getSummary:             (id, params) => api.get(`/attendance/summary/${id}`, { params }),
+  generateSummary:        (id, y, m)   => api.post(`/attendance/summary/${id}/${y}/${m}/generate`),
+};
 // ─── LEAVE ──────────────────────────────────────────────────────────────────
 export const leaveAPI = {
   getTypes:           ()       => api.get('/leave/types'),

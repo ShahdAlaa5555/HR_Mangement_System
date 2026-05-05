@@ -20,10 +20,9 @@ export default function ProfilePage() {
 
   useEffect(() => {
     employeeAPI.getMe()
-      .then((res) => {
-        const outer = res.data;
-        const payload = (outer && 'data' in outer) ? outer.data : outer;
-        const emp = payload?.employee || payload?.user || payload;
+      .then(({ data }) => {
+        // Interceptor unwrapped → data.employee or data is the profile
+        const emp = data?.employee || data?.user || data;
         setProfile(emp);
         setForm(emp);
         setLoading(false);

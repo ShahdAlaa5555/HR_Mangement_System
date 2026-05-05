@@ -103,6 +103,20 @@ model Employee {
   LeaveBalances           LeaveBalance[]
   CancelledLeaves         LeaveRequest[]                @relation("LeaveCancelledBy")
   LeaveRequests           LeaveRequest[]                @relation("LeaveEmployee")
+  BlockPeriodsCreated      LeaveBlockPeriod[]             @relation("BlockPeriodCreator")
+   BalanceAdjustmentLogs    LeaveBalanceAdjustmentLog[]    @relation("BalanceAdjEmployee")
+  BalanceAdjustmentsBy     LeaveBalanceAdjustmentLog[]    @relation("BalanceAdjBy")
+  EncashmentRequests       LeaveEncashment[]              @relation("EncashmentEmployee")
+  EncashmentRequestedBy    LeaveEncashment[]              @relation("EncashmentRequester")
+   EncashmentHRApprovals    LeaveEncashment[]              @relation("EncashmentHRApprover")
+   EncashmentFinanceApprovals LeaveEncashment[]            @relation("EncashmentFinanceApprover")
+   AccrualLogs              LeaveAccrualLog[]
+   RoundingConfigsCreated   LeaveRoundingConfig[]          @relation("RoundingConfigCreator")
+   MaternityTrackers        MaternityLeaveTracker[]        @relation("MaternityTrackerEmployee")
+   MaternityOverrides       MaternityLeaveTracker[]        @relation("MaternityTrackerOverride")
+   LeaveDecisionsFor        LeaveDecision[]                @relation("DecisionEmployee")
+   LeaveDecisionsIssued     LeaveDecision[]                @relation("DecisionIssuer")
+
   Notifications           Notification[]
   OvertimeApprovedBy      OvertimeRequest[]             @relation("OvertimeApprover")
   OvertimeRequests        OvertimeRequest[]             @relation("OvertimeEmployee")
@@ -288,6 +302,10 @@ model LeaveType {
   Balances         LeaveBalance[]
   Policies         LeavePolicy[]
   Requests         LeaveRequest[]
+   BlockPeriods             LeaveBlockPeriod[]
+  AdjustmentLogs           LeaveBalanceAdjustmentLog[]
+  Encashments              LeaveEncashment[]
+   AccrualLogs              LeaveAccrualLog[]
 }
 
 model LeavePolicy {
@@ -361,6 +379,7 @@ model LeaveRequest {
   HalfDayPortion    String?            @db.NVarChar(10)
   Reason            String?
   AttachmentURL     String?            @db.NVarChar(300)
+  DocumentReference  String?  @db.NVarChar(300)
   Status            String             @default("Draft", map: "DF__LeaveRequ__Statu__6CD828CA") @db.NVarChar(30)
   CancelledBy       Int?
   CancelReason      String?            @db.NVarChar(500)
@@ -369,6 +388,8 @@ model LeaveRequest {
   AttendanceRecords AttendanceRecord[]
   ActionLogs        LeaveActionLog[]
   Approvals         LeaveApproval[]
+    MaternityTracker         MaternityLeaveTracker?
+  LeaveDecisions           LeaveDecision[]
   CancelledByEmp    Employee?          @relation("LeaveCancelledBy", fields: [CancelledBy], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction, map: "FK__LeaveRequ__Cance__6EC0713C")
   Employee          Employee           @relation("LeaveEmployee", fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK__LeaveRequ__Emplo__690797E6")
   LeaveType         LeaveType          @relation(fields: [LeaveTypeID], references: [LeaveTypeID], onUpdate: NoAction, map: "FK__LeaveRequ__Leave__69FBBC1F")
@@ -408,7 +429,7 @@ model LeaveApproval {
 
 model LeaveActionLog {
   LogID          Int          @id(map: "PK__LeaveAct__5E5499A8ECEBAF95") @default(autoincrement())
-  LeaveRequestID Int
+  LeaveRequestID Int?
   ActionBy       Int
   ActionType     String       @db.NVarChar(50)
   PreviousStatus String?      @db.NVarChar(30)
@@ -416,7 +437,162 @@ model LeaveActionLog {
   Notes          String?      @db.NVarChar(500)
   ActionAt       DateTime     @default(dbgenerated("getutcdate()"), map: "DF__LeaveActi__Actio__02C769E9")
   ActionByEmp    Employee     @relation(fields: [ActionBy], references: [EmployeeID], onUpdate: NoAction, map: "FK__LeaveActi__Actio__01D345B0")
-  LeaveRequest   LeaveRequest @relation(fields: [LeaveRequestID], references: [LeaveRequestID], onUpdate: NoAction, map: "FK__LeaveActi__Leave__00DF2177")
+  LeaveRequest   LeaveRequest? @relation(fields: [LeaveRequestID], references: [LeaveRequestID], onUpdate: NoAction, map: "FK__LeaveActi__Leave__00DF2177")
+}
+model LeaveBlockPeriod {
+  BlockPeriodID Int        @id @default(autoincrement())
+  LeaveTypeID   Int?
+  StartDate     DateTime   @db.Date
+  EndDate       DateTime   @db.Date
+  Reason        String?    @db.NVarChar(300)
+  CreatedBy     Int
+  IsActive      Boolean    @default(true)
+  CreatedAt     DateTime   @default(dbgenerated("getutcdate()"))
+
+  CreatedByEmp  Employee   @relation("BlockPeriodCreator", fields: [CreatedBy], references: [EmployeeID], onUpdate: NoAction, map: "FK_LeaveBlockPeriod_Creator")
+  LeaveType     LeaveType? @relation(fields: [LeaveTypeID], references: [LeaveTypeID], onDelete: NoAction, onUpdate: NoAction, map: "FK_LeaveBlockPeriod_LeaveType")
+
+  @@index([StartDate, EndDate], map: "IX_LeaveBlockPeriod_Dates")
+  @@index([IsActive], map: "IX_LeaveBlockPeriod_Active")
+}
+
+model LeaveBalanceAdjustmentLog {
+  AdjLogID        Int       @id @default(autoincrement())
+  EmployeeID      Int
+  LeaveTypeID     Int
+  BalanceYear     Int
+  AdjustedDays    Decimal   @db.Decimal(6, 2)   // + = credit, - = debit
+  PreviousBalance Decimal   @db.Decimal(6, 2)   // AdjustedDays snapshot before change
+  NewBalance      Decimal   @db.Decimal(6, 2)   // AdjustedDays snapshot after change
+  // CORRECTION | CARRYOVER_OVERRIDE | LEGAL_RULING | ENCASHMENT | REWARD | OTHER
+  AdjustmentType  String    @db.NVarChar(50)
+  Reason          String    @db.NVarChar(500)
+  AdjustedBy      Int
+  AdjustedAt      DateTime  @default(dbgenerated("getutcdate()"))
+
+  Employee        Employee  @relation("BalanceAdjEmployee", fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK_LeaveBalAdj_Employee")
+  LeaveType       LeaveType @relation(fields: [LeaveTypeID], references: [LeaveTypeID], onUpdate: NoAction, map: "FK_LeaveBalAdj_LeaveType")
+  AdjustedByEmp   Employee  @relation("BalanceAdjBy", fields: [AdjustedBy], references: [EmployeeID], onUpdate: NoAction, map: "FK_LeaveBalAdj_AdjustedBy")
+
+  @@index([EmployeeID, LeaveTypeID, BalanceYear], map: "IX_LeaveBalAdj_Employee_Type_Year")
+  @@index([AdjustedAt], map: "IX_LeaveBalAdj_Date")
+}
+
+
+model LeaveEncashment {
+  EncashmentID      Int        @id @default(autoincrement())
+  EmployeeID        Int
+  LeaveTypeID       Int
+  BalanceYear       Int
+  DaysRequested     Decimal    @db.Decimal(6, 2)   // days employee wants to encash
+  DaysApproved      Decimal?   @db.Decimal(6, 2)   // may differ if capped
+  DailyRate         Decimal    @db.Decimal(12, 4)   // BaseSalary / 30
+  TotalAmount       Decimal?   @db.Decimal(15, 2)   // DaysApproved × DailyRate (set at approval)
+  MonthlySalarySnap Decimal    @db.Decimal(15, 2)   // salary snapshot at request time
+  WorkDaysInMonth   Int        @default(30)
+  CapOverrideReason String?    @db.NVarChar(300)    // if HR overrides the 30-day cap
+  // Pending | ApprovedHR | ApprovedFinance | Paid | Rejected
+  Status            String     @default("Pending") @db.NVarChar(30)
+  RequestedBy       Int
+  ApprovedByHR      Int?
+  ApprovedByFinance Int?
+  PayrollRunID      Int?        // linked when paid via payroll run
+  ApprovedAt        DateTime?
+  PaidAt            DateTime?
+  RejectionReason   String?    @db.NVarChar(300)
+  Notes             String?    @db.NVarChar(500)
+  CreatedAt         DateTime   @default(dbgenerated("getutcdate()"))
+  UpdatedAt         DateTime   @default(dbgenerated("getutcdate()"))
+
+  Employee          Employee   @relation("EncashmentEmployee",        fields: [EmployeeID],      references: [EmployeeID],   onUpdate: NoAction, map: "FK_Encashment_Employee")
+  LeaveType         LeaveType  @relation(                             fields: [LeaveTypeID],     references: [LeaveTypeID],  onUpdate: NoAction, map: "FK_Encashment_LeaveType")
+  Requester         Employee   @relation("EncashmentRequester",       fields: [RequestedBy],     references: [EmployeeID],   onUpdate: NoAction, map: "FK_Encashment_Requester")
+  HRApprover        Employee?  @relation("EncashmentHRApprover",      fields: [ApprovedByHR],    references: [EmployeeID],   onDelete: NoAction, onUpdate: NoAction, map: "FK_Encashment_HRApprover")
+  FinanceApprover   Employee?  @relation("EncashmentFinanceApprover", fields: [ApprovedByFinance],references: [EmployeeID],  onDelete: NoAction, onUpdate: NoAction, map: "FK_Encashment_FinanceApprover")
+
+  @@index([EmployeeID, BalanceYear], map: "IX_Encashment_Employee_Year")
+  @@index([Status],                  map: "IX_Encashment_Status")
+}
+/ Monthly accrual formula: EligibleDays = (MaxDaysPerYear / 12) × eligibleFraction
+
+model LeaveAccrualLog {
+  AccrualLogID   Int       @id @default(autoincrement())
+  EmployeeID     Int
+  LeaveTypeID    Int
+  BalanceYear    Int
+  AccrualMonth   Int       // 1 = January … 12 = December
+  EligibleDays   Decimal   @db.Decimal(6, 4)   // days credited (0 if paused)
+  AccrualRate    Decimal   @db.Decimal(6, 4)   // MaxDaysPerYear / 12
+  WasPaused      Boolean   @default(false)     // true = accrual suspended this month
+  // UNPAID_LEAVE | SUSPENSION | PROBATION | FIRST_YEAR_WAIT | OTHER
+  PauseReason    String?   @db.NVarChar(100)
+  RunAt          DateTime  @default(dbgenerated("getutcdate()"))
+  RunBy          String    @db.NVarChar(50)    // "SYSTEM_CRON" or HR employee ID as string
+
+  Employee       Employee  @relation(fields: [EmployeeID], references: [EmployeeID], onUpdate: NoAction, map: "FK_AccrualLog_Employee")
+  LeaveType      LeaveType @relation(fields: [LeaveTypeID], references: [LeaveTypeID], onUpdate: NoAction, map: "FK_AccrualLog_LeaveType")
+
+  @@unique([EmployeeID, LeaveTypeID, BalanceYear, AccrualMonth], name: "UQ_AccrualLog", map: "UQ_AccrualLog")
+  @@index([EmployeeID, BalanceYear], map: "IX_AccrualLog_Employee_Year")
+}
+model LeaveRoundingConfig {
+  RoundingConfigID  Int       @id @default(autoincrement())
+  // null = applies to all employees (global default)
+  // e.g. "Faculty" | "Admin Staff" | "Contract Staff" | "Part-Time"
+  EmployeeCategory  String?   @db.NVarChar(50)
+  // NONE | ARITHMETIC | ALWAYS_UP | ALWAYS_DOWN
+  RoundingMethod    String    @db.NVarChar(30)
+  AppliesFrom       DateTime  @db.Date
+  AppliesTo         DateTime? @db.Date
+  CreatedBy         Int
+  CreatedAt         DateTime  @default(dbgenerated("getutcdate()"))
+
+  CreatedByEmp      Employee  @relation("RoundingConfigCreator", fields: [CreatedBy], references: [EmployeeID], onUpdate: NoAction, map: "FK_RoundingConfig_Creator")
+
+  @@unique([EmployeeCategory, AppliesFrom], name: "UQ_RoundingConfig", map: "UQ_RoundingConfig")
+}
+model MaternityLeaveTracker {
+  TrackerID             Int           @id @default(autoincrement())
+  EmployeeID            Int
+  LeaveRequestID        Int           @unique
+  OccurrenceNumber      Int           // 1st, 2nd, 3rd maternity leave in career
+  ActualStartDate       DateTime      @db.Date
+  ActualEndDate         DateTime?     @db.Date
+  // Computed = ActualStartDate + 24 months; stored for query performance
+  PostProtectionEndDate DateTime?     @db.Date
+  OverriddenBy          Int?          // HR user who manually corrected the record
+  OverrideNote          String?       @db.NVarChar(300)
+  CreatedAt             DateTime      @default(dbgenerated("getutcdate()"))
+  UpdatedAt             DateTime      @default(dbgenerated("getutcdate()"))
+
+  Employee              Employee      @relation("MaternityTrackerEmployee", fields: [EmployeeID],      references: [EmployeeID],      onUpdate: NoAction, map: "FK_MaternityTracker_Employee")
+  LeaveRequest          LeaveRequest  @relation(                            fields: [LeaveRequestID],  references: [LeaveRequestID],  onUpdate: NoAction, map: "FK_MaternityTracker_Request")
+  OverriddenByEmp       Employee?     @relation("MaternityTrackerOverride", fields: [OverriddenBy],    references: [EmployeeID],      onDelete: NoAction, onUpdate: NoAction, map: "FK_MaternityTracker_Override")
+
+  @@index([EmployeeID], map: "IX_MaternityTracker_Employee")
+}
+
+model LeaveDecision {
+  DecisionID     Int           @id @default(autoincrement())
+  EmployeeID     Int
+  LeaveRequestID Int?
+  DecisionNumber String        @unique @db.NVarChar(50)
+  // APPROVAL | EXTENSION | ENCASHMENT | SPECIAL_GRANT | FORFEITURE | OTHER
+  DecisionType   String        @db.NVarChar(80)
+  IssueDate      DateTime      @db.Date
+  ExecutionDate  DateTime      @db.Date
+  ValidUntil     DateTime?     @db.Date
+  Description    String?       @db.NVarChar(500)
+  DocumentURL    String?       @db.NVarChar(300)   // uploaded PDF / scan
+  IssuedBy       Int
+  CreatedAt      DateTime      @default(dbgenerated("getutcdate()"))
+
+  Employee       Employee      @relation("DecisionEmployee",  fields: [EmployeeID],      references: [EmployeeID],      onUpdate: NoAction,                        map: "FK_LeaveDecision_Employee")
+  LeaveRequest   LeaveRequest? @relation(                     fields: [LeaveRequestID],  references: [LeaveRequestID],  onDelete: NoAction, onUpdate: NoAction,    map: "FK_LeaveDecision_Request")
+  IssuedByEmp    Employee      @relation("DecisionIssuer",    fields: [IssuedBy],        references: [EmployeeID],      onUpdate: NoAction,                        map: "FK_LeaveDecision_IssuedBy")
+
+  @@index([EmployeeID],      map: "IX_LeaveDecision_Employee")
+  @@index([ExecutionDate],   map: "IX_LeaveDecision_ExecDate")
 }
 
 model SickLeaveTier {

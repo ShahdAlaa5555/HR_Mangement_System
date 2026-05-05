@@ -14,6 +14,11 @@ import AttendancePage  from './pages/Attendance/AttendancePage';
 import LeavePage       from './pages/Leave/LeavePage';
 import PayrollPage     from './pages/Payroll/PayrollPage';
 import SettingsPage    from './pages/Settings/SettingsPage';
+import AttendanceCalendarPage  from './pages/Attendance/AttendanceCalendarPage';
+import ShiftsPage              from './pages/Attendance/ShiftsPage';
+import AttendanceInboxPage     from './pages/Attendance/AttendanceInboxPage';
+import AttendanceReportsPage   from './pages/Attendance/AttendanceReportsPage';
+import HolidaysPage            from './pages/Attendance/HolidaysPage';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -38,7 +43,12 @@ function AppRoutes() {
                 <Route path="/dashboard"  element={<DashboardPage  />} />
                 <Route path="/employees"  element={<EmployeePage   />} />
                 <Route path="/profile"    element={<ProfilePage    />} />
-                <Route path="/attendance" element={<AttendancePage />} />
+                <Route path="/attendance"              element={<AttendancePage />} />
+                <Route path="/attendance/calendar"    element={<AttendanceCalendarPage />} />
+                <Route path="/attendance/shifts"      element={<ShiftsPage />} />
+                <Route path="/attendance/inbox"       element={<AttendanceInboxPage />} />
+                <Route path="/attendance/reports"     element={<AttendanceReportsPage />} />
+                <Route path="/attendance/holidays"    element={<HolidaysPage />} />
                 <Route path="/leave"      element={<LeavePage      />} />
                 <Route path="/payroll"    element={<PayrollPage    />} />
                 <Route path="/settings"   element={<SettingsPage   />} />

@@ -118,27 +118,30 @@ export default function PayrollPage() {
   const [saving, setSaving]     = useState(false);
 
   const load = useCallback(() => {
-    const unwrap = (res) => { const o = res?.data; return (o && 'data' in o) ? o.data : o; };
-    const toArr  = (res, keys) => { const p = unwrap(res); if (Array.isArray(p)) return p; for (const k of keys) if (Array.isArray(p?.[k])) return p[k]; return []; };
+    const toArr = (data, keys) => {
+      if (Array.isArray(data)) return data;
+      for (const k of keys) if (Array.isArray(data?.[k])) return data[k];
+      return [];
+    };
 
     if (isPayroll) {
       payrollAPI.getDashboard()
-        .then((res) => { setDash(unwrap(res)); setLoadDash(false); })
+        .then(({ data }) => { setDash(data); setLoadDash(false); })
         .catch(() => setLoadDash(false));
 
       payrollAPI.listRuns({ limit: 10 })
-        .then((res) => { setRuns(toArr(res, ['runs','payrollRuns','data'])); setLoadRuns(false); })
+        .then(({ data }) => { setRuns(toArr(data, ['runs','payrollRuns'])); setLoadRuns(false); })
         .catch(() => setLoadRuns(false));
 
       payrollAPI.listExceptions()
-        .then((res) => setExcept(toArr(res, ['exceptions','data'])))
+        .then(({ data }) => setExcept(toArr(data, ['exceptions'])))
         .catch(() => {});
     } else {
       setLoadDash(false); setLoadRuns(false);
     }
 
     payrollAPI.getMyPayslips()
-      .then((res) => setMySlips(toArr(res, ['payslips','data'])))
+      .then(({ data }) => setMySlips(toArr(data, ['payslips'])))
       .catch(() => {});
   }, [isPayroll]);
 

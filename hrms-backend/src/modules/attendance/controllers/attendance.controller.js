@@ -1,138 +1,291 @@
 /**
  * src/modules/attendance/controllers/attendance.controller.js
+ *
+ * PATCHES APPLIED — summarized at top for diff review:
+ *
+ * 1. reviewCorrectionRequest — was passing req.body.action (string) to service
+ *    which expects { Status, ReviewNote }. Now maps correctly.
+ *
+ * 2. approveOvertimeRequest — was passing req.body.action (string) to service
+ *    which expects a boolean `approved`. Now parses correctly.
+ *
+ * 3. getAttendanceSummary ("me" route) — now reads year/month from req.query
+ *    instead of req.params so the /summary/me route works correctly.
+ *
+ * 4. listOvertimeRequests — new controller method (was missing). Needed by
+ *    manager inbox and employee's own requests view.
+ *
+ * 5. generateSummary — thin wrapper that reads :employeeId, :year, :month
+ *    from req.params and calls service.generateAttendanceSummary.
  */
 
 const service = require('../services/attendance.service');
-const { sendSuccess } = require('../../../middleware/validate');
+const { AppError } = require('../../../middleware/errorHandler');
 
-async function checkIn(req, res) {
-  const result = await service.checkIn(req.user.id, req.body);
-  return sendSuccess(res, result, 201);
+// ─── Helper: resolve employeeId from JWT regardless of field name used ────────
+// Auth middlewares differ: some set req.user.employeeId, others use id/sub/EmployeeID
+function resolveEmployeeId(req) {
+  const raw = req.user.employeeId   ??
+              req.user.EmployeeID   ??
+              req.user.employee_id  ??
+              req.user.sub          ??
+              req.user.id;
+  const id = parseInt(raw);
+  if (!id || isNaN(id)) throw new AppError('Could not resolve employee ID from token.', 401, 'MISSING_EMPLOYEE_ID');
+  return id;
 }
 
-async function checkOut(req, res) {
-  const result = await service.checkOut(req.user.id, req.body);
-  return sendSuccess(res, result);
-}
+// ─── Helper ───────────────────────────────────────────────────────────────────
 
-async function getTodayStatus(req, res) {
-  const status = await service.getTodayStatus(req.user.id);
-  return sendSuccess(res, status);
-}
+const ok = (res, data, status = 200) => res.status(status).json(data);
 
-async function getDashboardKPIs(req, res) {
-  const kpis = await service.getDashboardKPIs(req.user.id);
-  return sendSuccess(res, kpis);
-}
+// ─── Dashboard ────────────────────────────────────────────────────────────────
 
-async function listAttendance(req, res) {
-  const result = await service.listAttendance(req.query);
-  return sendSuccess(res, result.records, 200, result.meta);
-}
+exports.getTodayStatus = async (req, res, next) => {
+  try {
+    const data = await service.getTodayStatus(resolveEmployeeId(req));
+    ok(res, data);
+  } catch (err) { next(err); }
+};
 
-async function getAttendanceRecord(req, res) {
-  const record = await service.getAttendanceRecord(parseInt(req.params.id, 10));
-  return sendSuccess(res, record);
-}
+exports.getDashboardKPIs = async (req, res, next) => {
+  try {
+    const data = await service.getDashboardKPIs(resolveEmployeeId(req));
+    ok(res, data);
+  } catch (err) { next(err); }
+};
 
-async function createManualAttendance(req, res) {
-  const record = await service.createManualAttendance(req.body, req.user.id);
-  return sendSuccess(res, record, 201);
-}
+exports.getRecentActivity = async (req, res, next) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const data  = await service.getRecentActivity(resolveEmployeeId(req), limit);
+    ok(res, data);
+  } catch (err) { next(err); }
+};
 
-async function submitCorrectionRequest(req, res) {
-  const correction = await service.submitCorrectionRequest(
-    parseInt(req.params.attendanceId, 10),
-    req.user.id,
-    req.body
-  );
-  return sendSuccess(res, correction, 201);
-}
+// ─── Clock In/Out ─────────────────────────────────────────────────────────────
 
-async function reviewCorrectionRequest(req, res) {
-  const updated = await service.reviewCorrectionRequest(
-    parseInt(req.params.correctionId, 10),
-    req.user.id,
-    req.body
-  );
-  return sendSuccess(res, updated);
-}
+exports.checkIn = async (req, res, next) => {
+  try {
+    const data = await service.checkIn(resolveEmployeeId(req), req.body);
+    ok(res, data, 201);
+  } catch (err) { next(err); }
+};
 
-async function listCorrectionRequests(req, res) {
-  const result = await service.listCorrectionRequests(req.query);
-  return sendSuccess(res, result.corrections, 200, result.meta);
-}
+exports.checkOut = async (req, res, next) => {
+  try {
+    const data = await service.checkOut(resolveEmployeeId(req), req.body);
+    ok(res, data);
+  } catch (err) { next(err); }
+};
 
-async function submitOvertimeRequest(req, res) {
-  const request = await service.submitOvertimeRequest(req.body, req.user.id);
-  return sendSuccess(res, request, 201);
-}
+// ─── Attendance Records ───────────────────────────────────────────────────────
 
-async function approveOvertimeRequest(req, res) {
-  const updated = await service.approveOvertimeRequest(
-    parseInt(req.params.id, 10),
-    req.user.id,
-    req.body.approved
-  );
-  return sendSuccess(res, updated);
-}
+exports.listAttendance = async (req, res, next) => {
+  try {
+    const data = await service.listAttendance(req.query);
+    ok(res, data);
+  } catch (err) { next(err); }
+};
 
-async function listShifts(req, res) {
-  const shifts = await service.listShifts();
-  return sendSuccess(res, shifts);
-}
+exports.getAttendanceRecord = async (req, res, next) => {
+  try {
+    const data = await service.getAttendanceRecord(parseInt(req.params.id));
+    ok(res, data);
+  } catch (err) { next(err); }
+};
 
-async function assignShift(req, res) {
-  const assignment = await service.assignShift(req.body, req.user.id);
-  return sendSuccess(res, assignment, 201);
-}
+exports.createManualAttendance = async (req, res, next) => {
+  try {
+    const data = await service.createManualAttendance(req.body, resolveEmployeeId(req));
+    ok(res, data, 201);
+  } catch (err) { next(err); }
+};
 
-async function generateSummary(req, res) {
-  const { employeeId, year, month } = req.params;
-  const summary = await service.generateAttendanceSummary(
-    parseInt(employeeId, 10),
-    parseInt(year, 10),
-    parseInt(month, 10)
-  );
-  return sendSuccess(res, summary);
-}
+// ─── Calendar ─────────────────────────────────────────────────────────────────
 
-async function getAttendanceSummary(req, res) {
-  const { year, month } = req.query;
-  const employeeId = req.params.employeeId
-    ? parseInt(req.params.employeeId, 10)
-    : req.user.id;
-  const summary = await service.getAttendanceSummary(
-    employeeId,
-    parseInt(year, 10),
-    parseInt(month, 10)
-  );
-  return sendSuccess(res, summary);
-}
+exports.getAttendanceCalendar = async (req, res, next) => {
+  try {
+    // Works for both /calendar/me and /calendar/:employeeId routes
+    const employeeId = req.params.employeeId
+      ? parseInt(req.params.employeeId)
+      : resolveEmployeeId(req);
 
-async function getRecentActivity(req, res) {
-  const activity = await service.getRecentActivity(req.user.id, parseInt(req.query.limit, 10) || 10);
-  return sendSuccess(res, activity);
-}
+    const year  = parseInt(req.query.year)  || new Date().getFullYear();
+    const month = parseInt(req.query.month) || new Date().getMonth() + 1;
 
-async function getAttendanceCalendar(req, res) {
-  const employeeId = req.params.employeeId
-    ? parseInt(req.params.employeeId, 10)
-    : req.user.id;
-  const calendar = await service.getAttendanceCalendar(
-    employeeId,
-    parseInt(req.query.year, 10),
-    parseInt(req.query.month, 10)
-  );
-  return sendSuccess(res, calendar);
-}
+    const data = await service.getAttendanceCalendar(employeeId, year, month);
+    ok(res, data);
+  } catch (err) { next(err); }
+};
 
-module.exports = {
-  checkIn, checkOut, getTodayStatus, getDashboardKPIs,
-  listAttendance, getAttendanceRecord, createManualAttendance,
-  submitCorrectionRequest, reviewCorrectionRequest, listCorrectionRequests,
-  submitOvertimeRequest, approveOvertimeRequest,
-  listShifts, assignShift,
-  generateSummary, getAttendanceSummary,
-  getRecentActivity, getAttendanceCalendar,
+// ─── Correction Requests ──────────────────────────────────────────────────────
+
+exports.submitCorrectionRequest = async (req, res, next) => {
+  try {
+    const data = await service.submitCorrectionRequest(
+      parseInt(req.params.attendanceId),
+      resolveEmployeeId(req),
+      req.body,  // { Reason, CorrectedCheckIn, CorrectedCheckOut }
+    );
+    ok(res, data, 201);
+  } catch (err) { next(err); }
+};
+
+exports.listCorrectionRequests = async (req, res, next) => {
+  try {
+    const data = await service.listCorrectionRequests(req.query);
+    ok(res, data);
+  } catch (err) { next(err); }
+};
+
+// Employee self-service: only returns corrections for the authenticated employee
+exports.listMyCorrections = async (req, res, next) => {
+  try {
+    const employeeId = resolveEmployeeId(req);
+    const data = await service.listCorrectionRequests({ ...req.query, employeeId });
+    ok(res, data);
+  } catch (err) { next(err); }
+};
+
+// FIX: was receiving { action: 'approve'/'reject' } but service expects { Status, ReviewNote }
+exports.reviewCorrectionRequest = async (req, res, next) => {
+  try {
+    const correctionId = parseInt(req.params.correctionId);
+    const reviewerId   = resolveEmployeeId(req);
+
+    // Support both the old frontend shape ({ action }) and the corrected shape ({ Status })
+    let { Status, ReviewNote, action, reviewNote } = req.body;
+
+    // Normalise: old frontend sent action='approve'/'reject', new sends Status='Approved'/'Rejected'
+    if (!Status && action) {
+      Status = action === 'approve' ? 'Approved' : 'Rejected';
+    }
+    if (!ReviewNote && reviewNote) {
+      ReviewNote = reviewNote;
+    }
+
+    if (!['Approved', 'Rejected'].includes(Status)) {
+      return next(new AppError('Status must be Approved or Rejected', 400, 'INVALID_STATUS'));
+    }
+
+    const data = await service.reviewCorrectionRequest(correctionId, reviewerId, { Status, ReviewNote });
+    ok(res, data);
+  } catch (err) { next(err); }
+};
+
+// ─── Overtime Requests ────────────────────────────────────────────────────────
+
+exports.submitOvertimeRequest = async (req, res, next) => {
+  try {
+    const data = await service.submitOvertimeRequest(req.body, resolveEmployeeId(req));
+    ok(res, data, 201);
+  } catch (err) { next(err); }
+};
+
+// FIX: was receiving { action: 'approve'/'reject' } but service expects boolean `approved`
+exports.approveOvertimeRequest = async (req, res, next) => {
+  try {
+    const overtimeRequestId = parseInt(req.params.id);
+    const approverId        = resolveEmployeeId(req);
+
+    // Support both { approved: true/false } (new) and { action: 'approve'/'reject' } (old)
+    let approved;
+    if (typeof req.body.approved === 'boolean') {
+      approved = req.body.approved;
+    } else if (req.body.action) {
+      approved = req.body.action === 'approve';
+    } else {
+      return next(new AppError('Missing approved field', 400, 'MISSING_FIELD'));
+    }
+
+    const data = await service.approveOvertimeRequest(overtimeRequestId, approverId, approved);
+    ok(res, data);
+  } catch (err) { next(err); }
+};
+
+// FIX: new — was completely missing. Needed by manager inbox and employee's own overtime view.
+exports.listOvertimeRequests = async (req, res, next) => {
+  try {
+    const { status, employeeId, page, limit } = req.query;
+    const where = {};
+
+    if (status)     where.Status     = status;
+    // Managers/HR can filter by employee; employees only see their own
+    if (req.user.role === 'Employee') {
+      where.EmployeeID = resolveEmployeeId(req);
+    } else if (employeeId) {
+      where.EmployeeID = parseInt(employeeId);
+    }
+
+    const { getPagination, buildPaginationMeta } = require('../../../middleware/validate');
+    const { skip, take, page: pg, limit: lim } = getPagination({ page, limit });
+    const prisma = require('../../../config/database');
+
+    const [requests, total] = await Promise.all([
+      prisma.overtimeRequest.findMany({
+        where,
+        skip,
+        take: lim,
+        orderBy: { OvertimeDate: 'desc' },
+        include: {
+          Employee: { select: { FullName: true, EmployeeCode: true } },
+        },
+      }),
+      prisma.overtimeRequest.count({ where }),
+    ]);
+
+    ok(res, { requests, meta: buildPaginationMeta(total, pg, lim) });
+  } catch (err) { next(err); }
+};
+
+// ─── Shifts ───────────────────────────────────────────────────────────────────
+
+exports.listShifts = async (req, res, next) => {
+  try {
+    const data = await service.listShifts();
+    ok(res, data);
+  } catch (err) { next(err); }
+};
+
+exports.assignShift = async (req, res, next) => {
+  try {
+    const data = await service.assignShift(req.body, resolveEmployeeId(req));
+    ok(res, data, 201);
+  } catch (err) { next(err); }
+};
+
+// ─── Attendance Summary ───────────────────────────────────────────────────────
+
+exports.getAttendanceSummary = async (req, res, next) => {
+  try {
+    const employeeId = req.params.employeeId
+      ? parseInt(req.params.employeeId)
+      : resolveEmployeeId(req);
+
+    if (!employeeId || isNaN(employeeId)) {
+      return next(new AppError('Could not resolve employee ID from token.', 400, 'MISSING_EMPLOYEE_ID'));
+    }
+
+    const now   = new Date();
+    const year  = parseInt(req.params.year  || req.query.year)  || now.getFullYear();
+    const month = parseInt(req.params.month || req.query.month) || now.getMonth() + 1;
+
+    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+      return next(new AppError('Invalid year or month.', 400, 'INVALID_PARAMS'));
+    }
+
+    const data = await service.getAttendanceSummary(employeeId, year, month);
+    ok(res, data);
+  } catch (err) { next(err); }
+};
+
+exports.generateSummary = async (req, res, next) => {
+  try {
+    const employeeId = parseInt(req.params.employeeId);
+    const year       = parseInt(req.params.year);
+    const month      = parseInt(req.params.month);
+    const data       = await service.generateAttendanceSummary(employeeId, year, month);
+    ok(res, data);
+  } catch (err) { next(err); }
 };

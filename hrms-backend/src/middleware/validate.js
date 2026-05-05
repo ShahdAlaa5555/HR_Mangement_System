@@ -76,7 +76,7 @@ function getPagination(query) {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(
     parseInt(query.limit, 10) || parseInt(process.env.DEFAULT_PAGE_SIZE, 10) || 20,
-    parseInt(process.env.MAX_PAGE_SIZE, 10) || 100
+    parseInt(process.env.MAX_PAGE_SIZE, 10) || 9000000000
   );
   const skip = (page - 1) * limit;
   return { page, limit, skip };
