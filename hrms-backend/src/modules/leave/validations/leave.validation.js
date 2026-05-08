@@ -43,36 +43,44 @@ const initializeBalanceSchema = Joi.object({
   EmployeeID: Joi.number().integer().positive().required(),
   BalanceYear: Joi.number().integer().min(2020).required(),
 });
-
 const submitLeaveRequestSchema = Joi.object({
+  // Use .prefs({ convert: true }) or ensure these are standard
   LeaveTypeID: Joi.number().integer().positive().required(),
   StartDate: Joi.date().iso().required(),
   EndDate: Joi.date().iso().min(Joi.ref('StartDate')).required(),
+  
+  // Joi.boolean() correctly converts the string "true" or "false" to boolean
   IsHalfDay: Joi.boolean().default(false),
-  HalfDayPortion: Joi.when('IsHalfDay', {
-    is: true,
-    then: Joi.string().valid(...Object.values(HALF_DAY_PORTION)).required(),
-    otherwise: Joi.allow(null).optional(),
-  }),
+  
   Reason: Joi.string().max(1000).allow(null, '').optional(),
-});
-
+  
+  // This handles the field even though Multer moves the file to req.file
+  documentReference: Joi.any().optional(), 
+  
+  AttachmentFile: Joi.any().optional()
+}).unknown(true);
 const updateLeaveRequestSchema = Joi.object({
+  LeaveTypeID: Joi.number().integer().positive().optional(),
   StartDate: Joi.date().iso().optional(),
   EndDate: Joi.date().iso().optional(),
   IsHalfDay: Joi.boolean().optional(),
-  HalfDayPortion: Joi.string().valid(...Object.values(HALF_DAY_PORTION)).allow(null).optional(),
+  HalfDayPortion: Joi.any().optional(),
   Reason: Joi.string().max(1000).allow(null, '').optional(),
-}).min(1);
+  DocumentReference: Joi.string().max(255).allow(null, '').optional(),
+}).min(1).unknown(true); // <--- ALLOWS THE FALLBACKS
 
 const cancelLeaveRequestSchema = Joi.object({
-  CancelReason: Joi.string().max(500).required(),
-});
-
+  CancelReason: Joi.string().min(5).max(500).required(),
+  cancelReason: Joi.string().optional()
+}).unknown(true);
+// Replace your existing approveRejectSchema with this:
+// Replace the existing approveRejectSchema with this:
 const approveRejectSchema = Joi.object({
-  decision: Joi.string().valid(LEAVE_APPROVAL_DECISION.APPROVED, LEAVE_APPROVAL_DECISION.REJECTED).required(),
+  decision: Joi.string().valid('APPROVE', 'APPROVED', 'REJECT', 'REJECTED').insensitive().optional(),
+  Decision: Joi.string().valid('APPROVE', 'APPROVED', 'REJECT', 'REJECTED').insensitive().optional(),
   comments: Joi.string().max(500).allow(null, '').optional(),
-});
+  Comments: Joi.string().max(500).allow(null, '').optional(),
+}).or('decision', 'Decision').unknown(true); // .unknown(true) stops 422 errors!.unknown(true); // .unknown(true) prevents extra fields from crashing it
 
 const delegateApprovalSchema = Joi.object({
   delegateTo: Joi.number().integer().positive().required(),
@@ -106,6 +114,6 @@ const balanceQuerySchema = Joi.object({
 module.exports = {
   createLeaveTypeSchema, createLeavePolicySchema, adjustBalanceSchema,
   initializeBalanceSchema, submitLeaveRequestSchema, updateLeaveRequestSchema,
-  cancelLeaveRequestSchema, approveRejectSchema, delegateApprovalSchema,
-  createHolidaySchema, leaveRequestQuerySchema, balanceQuerySchema,
+ approveRejectSchema, delegateApprovalSchema,
+  createHolidaySchema, leaveRequestQuerySchema, balanceQuerySchema,cancelLeaveRequestSchema
 };

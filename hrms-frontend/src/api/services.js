@@ -106,7 +106,15 @@ export const leaveAPI = {
   listAll:            (params) => api.get('/leave/requests', { params }),
   getRequest:         (id)     => api.get(`/leave/requests/${id}`),
   approveReject:      (id, d)  => api.patch(`/leave/requests/${id}/approve`, d),
-  cancel:             (id, d)  => api.patch(`/leave/requests/${id}/cancel`, d),
+  updateGlobalEntitlements: (data) => api.post('/leave/admin/update-entitlements', data),
+  bulkProcess: (data) => api.post('/leave/requests/bulk', data),
+  // FIXED: Cancel mapped safely
+  cancel:             (id, payload) => api.patch(`/leave/requests/${id}/cancel`, payload),
+  // FIXED: Update Request mapped to PATCH
+  updateRequest:      (id, data) => api.patch(`/leave/requests/${id}`, data), 
+  
+  syncPayroll:        (payload) => api.post('/leave/sync/payroll/bulk', payload),
+  syncPayrollSingle:  (id, payload) => api.post(`/leave/requests/${id}/sync-payroll`, payload),
   delegate:           (id, d)  => api.patch(`/leave/requests/${id}/delegate`, d),
   initializeBalances: (data)   => api.post('/leave/balances/initialize', data),
   adjustBalance:      (data)   => api.post('/leave/balances/adjust', data),
@@ -115,6 +123,10 @@ export const leaveAPI = {
   getAnalytics:       ()       => api.get('/leave/analytics'),
 };
 
+export const notificationAPI = {
+  list: () => api.get('/notifications'), // This matches the 404 URL in your log
+  markAllAsRead: () => api.patch('/notifications/read-all'),
+};
 // ─── PAYROLL ─────────────────────────────────────────────────────────────────
 export const payrollAPI = {
   getDashboard:       ()       => api.get('/payroll/dashboard'),

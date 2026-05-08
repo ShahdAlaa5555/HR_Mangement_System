@@ -37,6 +37,8 @@ async function listEmployees(query) {
   } = query;
 
   const where = {};
+
+  // ── SEARCH ──
   if (search) {
     where.OR = [
       { EmployeeCode: { contains: search } },
@@ -44,14 +46,24 @@ async function listEmployees(query) {
       { Email: { contains: search } },
     ];
   }
-  if (departmentId) where.DepartmentID = departmentId;
-  if (positionId) where.PositionID = positionId;
-  if (employmentType) where.EmploymentType = employmentType;
-  if (status) where.CurrentStatus = status;
-  if (workLocationId) where.WorkLocationID = workLocationId;
-  if (supervisorId) where.SupervisorID = supervisorId;
-  if (isActive !== undefined) where.IsActive = isActive;
 
+  // ── ID FILTERING (Ensuring they are Numbers) ──
+  if (departmentId)   where.DepartmentID   = parseInt(departmentId, 10);
+  if (positionId)     where.PositionID     = parseInt(positionId, 10);
+  if (workLocationId) where.WorkLocationID = parseInt(workLocationId, 10);
+  if (supervisorId)   where.SupervisorID   = parseInt(supervisorId, 10);
+
+  // ── STATUS FILTERING (Making it case-insensitive for safety) ──
+  if (status) {
+    where.CurrentStatus = status; 
+  }
+
+  // ── BOOLEAN FILTERING (Handling string "true" vs boolean true) ──
+  if (isActive !== undefined) {
+    where.IsActive = (isActive === 'true' || isActive === true);
+  }
+
+  // ... rest of your function remains the same
   const [employees, total] = await Promise.all([
     prisma.employee.findMany({
       where,

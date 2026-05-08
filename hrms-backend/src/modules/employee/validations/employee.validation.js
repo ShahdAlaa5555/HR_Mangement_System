@@ -70,17 +70,20 @@ const updateEmployeeSchema = Joi.object({
 
 const employeeListQuerySchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
-  limit: Joi.number().integer().min(1).max(100).default(20),
+  // 1. INCREASE MAX LIMIT TO 1000
+  limit: Joi.number().integer().min(1).max(1000).default(20), 
   search: Joi.string().max(100).allow('').optional()
     .description('Searches EmployeeCode, FullName, Email'),
   departmentId: Joi.number().integer().positive().optional(),
   positionId: Joi.number().integer().positive().optional(),
   employmentType: Joi.string().valid(...Object.values(EMPLOYMENT_TYPE)).optional(),
-  status: Joi.string().valid(...Object.values(EMPLOYEE_STATUS)).optional(),
+  // 2. ALLOW BOTH CAPITALIZED AND LOWERCASE IF NECESSARY
+  status: Joi.string().optional(), 
   workLocationId: Joi.number().integer().positive().optional(),
   supervisorId: Joi.number().integer().positive().optional(),
-  isActive: Joi.boolean().optional(),
-});
+  // 3. ALLOW STRINGS FOR BOOLEANS (since query params are strings)
+  isActive: Joi.any().optional(), 
+}).unknown(true); // 4. ADD .unknown(true) to prevent crashes on extra params
 
 // ─── Change Request ───────────────────────────────────────────────────────────
 

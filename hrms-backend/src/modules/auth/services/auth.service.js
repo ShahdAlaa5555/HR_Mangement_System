@@ -19,7 +19,7 @@ function resolveRole(positionTitle = '') {
 
 function signAccessToken(employee, role) {
   return jwt.sign(
-    { sub: employee.EmployeeID, email: employee.Email, role, deptId: employee.DepartmentID, name: employee.FullName },
+    { sub: employee.EmployeeID, email: employee.Email, role, deptId: employee.DepartmentID, name: employee.FullName ,positionId: employee.PositionID},
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
   );
@@ -80,6 +80,8 @@ async function login(email, password) {
       role,
       department: employee.Department?.DepartmentName,
       position: employee.Position?.PositionTitle,
+      PositionID: employee.PositionID, // 👈 ADDED THIS
+      positionId: employee.PositionID, // 👈
       photoURL: employee.PhotoURL,
     },
   };

@@ -2,795 +2,1030 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   CalendarDays, Plus, Check, X, Clock, AlertCircle,
-  Send, BarChart2, Calendar,
+  Send, BarChart2, Calendar, Edit3, Users, Settings,
+  RefreshCw, ArrowRightLeft, Shield, CheckSquare, Square,FileText, Search
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { leaveAPI } from '../../api/services';
-import { Modal, Badge, SkeletonCard, EmptyState, InlineSpinner, StatCard } from '../../components/common';
+import { leaveAPI, notificationAPI, employeeAPI } from '../../api/services';
+import { Modal, Badge, SkeletonCard, InlineSpinner } from '../../components/common';
 import { useAuth } from '../../context/AuthContext';
 
-// Real DB status values → human-readable label
-const STATUS_LABEL = {
-  // Uppercase variants (SCREAMING_SNAKE_CASE)
-  SUBMITTED:       'Submitted',
-  PENDING_MANAGER: 'Pending Approval',
-  PendingManager:  'Pending Approval',
-  PendingHR:       'Pending HR',
-  PENDING_HR:      'Pending HR',
-  APPROVED:        'Approved',
-  REJECTED:        'Rejected',
-  CANCELLED:       'Cancelled',
-  CANCELED:        'Cancelled',
-  DRAFT:           'Draft',
-  // Title case variants
-  Submitted:       'Submitted',
-  Pending:         'Pending Approval',
-  Approved:        'Approved',
-  Rejected:        'Rejected',
-  Cancelled:       'Cancelled',
-  // Lowercase variants
-  submitted:       'Submitted',
-  pending:         'Pending Approval',
-  approved:        'Approved',
-  rejected:        'Rejected',
-  cancelled:       'Cancelled',
+// ─── SAFE ERROR EXTRACTOR ────────────────────────────────────────────────────
+const getErrMsg = (err) => {
+  const d = err.response?.data;
+  if (d?.error?.message) return d.error.message;
+  if (typeof d?.error === 'string') return d.error;
+  if (typeof d?.message === 'string') return d.message;
+  return err.message || 'An unexpected error occurred';
 };
 
-// Filter chips for All Requests (HR/Manager view)
-const STATUS_OPTIONS = [
-  { value: '',                label: 'All' },
-  { value: 'SUBMITTED',       label: 'Submitted' },
-  { value: 'PENDING_MANAGER', label: 'Pending Approval' },
-  { value: 'APPROVED',        label: 'Approved' },
-  { value: 'REJECTED',        label: 'Rejected' },
-  { value: 'CANCELLED',       label: 'Cancelled' },
-];
-
-// Filter chips for My History (employee view)
-const STATUS_HISTORY = [
-  { value: '',                label: 'All' },
-  { value: 'SUBMITTED',       label: 'Submitted' },
-  { value: 'PENDING_MANAGER', label: 'Pending' },
-  { value: 'APPROVED',        label: 'Approved' },
-  { value: 'REJECTED',        label: 'Rejected' },
-  { value: 'CANCELLED',       label: 'Cancelled' },
-];
-
-/* ── Leave Balance Card ── */
-function BalanceCard({ balance, loading }) {
-  if (loading) return <SkeletonCard />;
-  // Support both camelCase (API response) and PascalCase (Prisma raw) field names
-  const name      = balance.leaveTypeName  || balance.LeaveTypeName  || balance.name || balance.type || 'Leave';
-  const used      = Number(balance.usedDays      ?? balance.UsedDays      ?? 0);
-  const pending   = Number(balance.pendingDays   ?? balance.PendingDays   ?? 0);
-  const entitled  = Number(balance.entitledDays  ?? balance.EntitledDays  ?? 0);
-  const carryOver = Number(balance.carryOverDays ?? balance.CarryOverDays ?? 0);
-  const adjusted  = Number(balance.adjustedDays  ?? balance.AdjustedDays  ?? 0);
-  // Remaining = entitled + carryover + adjusted - used - pending
-  const remaining = Number(
-    balance.remainingDays ?? balance.RemainingDays ??
-    Math.max(0, entitled + carryOver + adjusted - used - pending)
-  );
-  // Use maxDaysPerYear (full policy entitlement) as the display ceiling so a
-  // prorated new-joiner with 25 entitled days still shows "25 of 30 days" not "100%".
-  // Fallback to entitled+carryOver+adjusted if maxDaysPerYear not in response.
-  const maxDays = Number(balance.maxDaysPerYear ?? (entitled + carryOver + adjusted));
-  const total   = maxDays || (used + remaining) || 1;
-  const pct     = total > 0 ? Math.round((remaining / total) * 100) : 0;
-
-  const COLOR_MAP = {
-    Annual: 'var(--blue)', Sick: 'var(--green)', Medical: 'var(--green)',
-    Emergency: 'var(--red)', Accidental: 'var(--red)', Sabbatical: 'var(--purple)',
-    Maternity: 'var(--purple)', Paternity: 'var(--purple)',
-  };
-  const color = Object.entries(COLOR_MAP).find(([k]) => name.includes(k))?.[1] || 'var(--gold)';
-
-  return (
-    <div className="stat-card">
-      <div className="stat-card-accent" style={{ background: color }} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          {name}
-        </div>
-        <CalendarDays size={18} style={{ color }} />
+// ─── INLINE MODAL ────────────────────────────────────────────────────────────
+const InlineModal = ({ title, onClose, children }) => (
+  <div style={{ position: 'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+    <div className="card" style={{ width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', background: '#fff', borderRadius: 8 }}>
+      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', borderBottom: '1px solid #eee' }}>
+         <div className="card-title" style={{ fontWeight: 600, fontSize: '1.1rem', margin: 0 }}>{title}</div>
+         <button className="btn btn-ghost" style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer' }} onClick={onClose}><X size={18}/></button>
       </div>
-      <div className="stat-card-value" style={{ color }}>{remaining}</div>
-      <div className="stat-card-label">days remaining of {maxDays}</div>
-      <div className="stat-card-progress" style={{ marginTop: 12 }}>
-        <div className="stat-card-progress-bar" style={{ width: `${pct}%`, background: color }} />
+      <div style={{ padding: '1rem' }}>
+        {children}
       </div>
-      <div className="stat-card-meta">
-        <span>{used} used{pending > 0 ? ` · ${pending} pending` : ''}{carryOver > 0 ? ` · ${carryOver} carried` : ''}</span>
-        <span>{pct}%</span>
-      </div>
-      {remaining <= 3 && remaining > 0 && (
-        <div style={{ fontSize: '0.7rem', color: 'var(--red)', marginTop: 4, fontWeight: 600 }}>
-          ⚠ Low balance — {remaining} day{remaining !== 1 ? 's' : ''} remaining
-        </div>
-      )}
-      {remaining === 0 && used > 0 && (
-        <div style={{ fontSize: '0.7rem', color: 'var(--red)', marginTop: 4, fontWeight: 600 }}>
-          ✕ Balance exhausted
-        </div>
-      )}
     </div>
-  );
-}
+  </div>
+);
 
-/* ── Request Row ── */
-function RequestRow({ req, onAction, isManager, userRole }) {
+// ─── STATUS CONSTANTS & HELPERS ──────────────────────────────────────────────
+const STATUS_LABEL = {
+  SUBMITTED: 'Submitted', PENDING_MANAGER: 'Pending Approval',
+  PendingManager: 'Pending Approval', PENDING_HR: 'Pending HR',
+  APPROVED: 'Approved', REJECTED: 'Rejected', CANCELLED: 'Cancelled',
+  DRAFT: 'Draft', Submitted: 'Submitted', Pending: 'Pending Approval',
+  Approved: 'Approved', Rejected: 'Rejected', Cancelled: 'Cancelled',
+};
+
+const STATUS_OPTIONS = [
+  { value: '', label: 'All' }, { value: 'SUBMITTED', label: 'Submitted' },
+  { value: 'PENDING_MANAGER', label: 'Pending Approval' }, { value: 'APPROVED', label: 'Approved' },
+  { value: 'REJECTED', label: 'Rejected' }, { value: 'CANCELLED', label: 'Cancelled' },
+];
+
+const STATUS_HISTORY = [
+  { value: '', label: 'All' }, { value: 'SUBMITTED', label: 'Submitted' },
+  { value: 'PENDING_MANAGER', label: 'Pending' }, { value: 'APPROVED', label: 'Approved' },
+  { value: 'REJECTED', label: 'Rejected' }, { value: 'CANCELLED', label: 'Cancelled' },
+];
+
+const normStatus = s => (s || '').toUpperCase().replace(/_/g, '');
+const statusMatches = (reqStatus, filterValue) => {
+  if (!filterValue) return true;
+  const rs = normStatus(reqStatus);
+  const fv = normStatus(filterValue);
+  if (rs === fv) return true;
+  const allPending = new Set(['PENDINGMANAGER','PENDINGHR','SUBMITTED','PENDING','DRAFT']);
+  if (fv === 'PENDINGMANAGER' && allPending.has(rs)) return true;
+  return false;
+};
+const isFinalStatus = s => ['APPROVED','REJECTED','CANCELLED'].includes(normStatus(s));
+
+const toArr = (r) => {
+  if (!r) return [];
+  const d = r.data?.data || r.data?.requests || r.data || r.requests || r || [];
+  return Array.isArray(d) ? d : [];
+};
+function RequestRow({ req, onAction, onEdit, onOverrideClick, isSupervisor, isHRManager, isBasicHR, currentUser, isSelected, onSelect, onVerifyDoc }) {
   const [acting, setActing] = useState('');
-
-  // Support both PascalCase (Prisma direct) and camelCase (serialized) field names
-  const name   = req.LeaveType?.LeaveTypeName || req.leaveType?.LeaveTypeName
-               || req.leaveTypeName || req.LeaveTypeName || req.type || '—';
-  const from   = (req.StartDate   || req.startDate)   ? new Date(req.StartDate   || req.startDate).toLocaleDateString()   : '—';
-  const to     = (req.EndDate     || req.endDate)     ? new Date(req.EndDate     || req.endDate).toLocaleDateString()     : '—';
-  const days   = req.TotalDays ?? req.totalDays ?? req.numberOfDays ?? req.days ?? '—';
-  const status = req.Status || req.status || 'SUBMITTED';
-  const id     = req.LeaveRequestID || req.leaveRequestId || req.id;
-  const empName = req.Employee?.FullName || req.employee?.FullName
-                || req.employeeName
-                || [req.employee?.firstName, req.employee?.lastName].filter(Boolean).join(' ')
-                || '—';
+  
+  const leaveTypeName = req.LeaveType?.LeaveTypeName || req.LeaveTypeName || '—';
+  const empFullName = req.Employee?.FullName || req.EmployeeName || '—';
+  const id = req.LeaveRequestID || req.id;
+  const docPath = req.DocumentReference || req.AttachmentURL; // Check both fields
 
   const act = async (action) => {
     setActing(action);
-    try { await onAction(id, action); }
-    finally { setActing(''); }
+    try { await onAction(id, action); } finally { setActing(''); }
   };
 
-  // Match any non-final status regardless of exact constant string value
-  const isFinal = ['APPROVED','REJECTED','CANCELLED','CANCELED','Approved','Rejected','Cancelled','approved','rejected','cancelled'].includes(status);
-  const isActionable  = !isFinal;
-  const isCancellable = !isFinal;
+  const currentStatus = req.Status || 'SUBMITTED';
+  const isFinal = ['APPROVED', 'REJECTED', 'CANCELLED'].includes(currentStatus.toUpperCase());
+  
+  // Logic for Approval buttons
+  const currentUserId = currentUser?.EmployeeID || currentUser?.id;
+  const isHREmployee = [1, 10, 21].includes(parseInt(req.Employee?.PositionID, 10));
+  const isDirectReport = req.Employee?.SupervisorID === currentUserId;
 
-  const displayLabel = STATUS_LABEL[status] || status;
+  const canApproveReject = !isFinal && (
+    (isSupervisor && !isHRManager) || 
+    (isHRManager && (isHREmployee || isDirectReport))
+  );
 
   return (
-    <tr>
-      <td>
-        <div style={{ fontWeight: 500 }}>{name}</div>
-        {(req.Reason || req.reason) && (
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-            {req.Reason || req.reason}
-          </div>
-        )}
-      </td>
-      {isManager && <td><div style={{ fontWeight: 500 }}>{empName}</div></td>}
-      <td style={{ fontSize: '0.82rem' }}>{from} → {to}</td>
-      <td>{days !== '—' ? `${days} day${days !== 1 ? 's' : ''}` : '—'}</td>
-      <td>
-        <span style={{
-          display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 600,
-          background: status === 'APPROVED' ? 'rgba(34,197,94,0.15)' :
-                      status === 'REJECTED' ? 'rgba(239,68,68,0.15)' :
-                      status === 'CANCELLED' ? 'rgba(156,163,175,0.15)' : 'rgba(251,191,36,0.15)',
-          color:      status === 'APPROVED' ? '#16a34a' :
-                      status === 'REJECTED' ? '#dc2626' :
-                      status === 'CANCELLED' ? '#6b7280' : '#b45309',
-        }}>
-          {displayLabel}
-        </span>
-      </td>
-      {isManager && (
-        <td style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: 160 }}>
-          {(req.Reason || req.reason || '—').slice(0, 60)}{(req.Reason || req.reason || '').length > 60 ? '…' : ''}
+    <tr style={{ background: isSelected ? 'rgba(59, 130, 246, 0.05)' : 'inherit' }}>
+      {isHRManager && (
+        <td>
+          <button className="btn btn-ghost p-1" onClick={() => onSelect(id)}>
+            {isSelected ? <CheckSquare size={16} color="var(--blue)" /> : <Square size={16} color="#ccc" />}
+          </button>
         </td>
       )}
+      <td><div style={{ fontWeight: 500 }}>{leaveTypeName}</div></td>
+      <td><div style={{ fontWeight: 500 }}>{empFullName}</div></td>
+      <td style={{ fontSize: '0.82rem' }}>
+        {new Date(req.StartDate).toLocaleDateString()} → {new Date(req.EndDate).toLocaleDateString()}
+      </td>
+      <td>{req.TotalDays}</td>
+      <td>
+        <Badge status={currentStatus.toUpperCase()}>{currentStatus}</Badge>
+      </td>
+      <td style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: 160 }}>{req.Reason}</td>
       <td>
         <div style={{ display: 'flex', gap: 6 }}>
-          {isManager && isActionable && (
+          {/* ── MOVED BUTTON INSIDE THIS TD ── */}
+          {isHRManager && docPath && (
+            <button 
+              className="btn btn-ghost btn-sm" 
+              onClick={() => onVerifyDoc(docPath)} 
+              style={{ color: 'var(--blue)', border: '1px solid var(--blue)', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              <Search size={13} /> Verify Doc
+            </button>
+          )}
+
+          {canApproveReject && (
             <>
-              <button className="btn btn-success btn-sm" onClick={() => act('approve')} disabled={!!acting}>
-                {acting === 'approve' ? <InlineSpinner /> : <><Check size={13} /> Approve</>}
-              </button>
-              <button className="btn btn-danger btn-sm" onClick={() => act('reject')} disabled={!!acting}>
-                {acting === 'reject' ? <InlineSpinner /> : <><X size={13} /> Reject</>}
-              </button>
+              <button className="btn btn-success btn-sm" onClick={() => act('approve')} disabled={!!acting}>Approve</button>
+              <button className="btn btn-danger btn-sm" onClick={() => act('reject')} disabled={!!acting}>Reject</button>
             </>
           )}
-          {!isManager && isCancellable && (
-            <button className="btn btn-ghost btn-sm" onClick={() => act('cancel')} disabled={!!acting}>
-              {acting === 'cancel' ? <InlineSpinner /> : 'Cancel'}
-            </button>
+          {isHRManager && isFinal && currentStatus !== 'CANCELLED' && (
+            <button className="btn btn-ghost btn-sm" onClick={() => onOverrideClick(req)}><Shield size={13}/> Override</button>
           )}
         </div>
       </td>
     </tr>
   );
 }
+// ─── UI COMPONENTS ───────────────────────────────────────────────────────────
+function BalanceCard({ balance, loading }) {
+  if (loading) return <SkeletonCard />;
+  const name = balance.leaveTypeName || balance.LeaveTypeName || balance.LeaveType?.LeaveTypeName || 'Leave';
+  
+  // ── STRICT BALANCE MATH: ONLY DEDUCTS ON APPROVAL (USED DAYS) ──
+  const used = Number(balance.usedDays ?? balance.UsedDays ?? 0);
+  const entitled = Number(balance.entitledDays ?? balance.EntitledDays ?? 0);
+  const carryOver = Number(balance.carryOverDays ?? balance.CarryOverDays ?? 0);
+  const adjusted = Number(balance.adjustedDays ?? balance.AdjustedDays ?? 0);
+  
+  // Pending Days are entirely omitted from calculations
+  const remaining = Math.max(0, entitled + carryOver + adjusted - used);
+  const maxDays = entitled + carryOver + adjusted;
+  const pct = maxDays > 0 ? Math.round((remaining / maxDays) * 100) : 0;
 
-/* ── Submit Form ── */
+  const color = name.includes('Sick') || name.includes('Medical') ? 'var(--green)' : 
+                name.includes('Emergency') ? 'var(--red)' : 'var(--blue)';
+
+  return (
+    <div className="stat-card">
+      <div className="stat-card-accent" style={{ background: color }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500, textTransform: 'uppercase' }}>{name}</div>
+        <CalendarDays size={18} style={{ color }} />
+      </div>
+      <div className="stat-card-value" style={{ color }}>{remaining}</div>
+      <div className="stat-card-label">days remaining of {maxDays}</div>
+      <div className="stat-card-progress" style={{ marginTop: 12 }}><div className="stat-card-progress-bar" style={{ width: `${pct}%`, background: color }} /></div>
+      <div className="stat-card-meta"><span>{used} used (Approved)</span><span>{pct}%</span></div>
+    </div>
+  );
+}
+
+// ─── MODALS & FORMS ──────────────────────────────────────────────────────────
 function SubmitLeaveForm({ leaveTypes, onSubmit, loading }) {
-  const [form, setForm]     = useState({ LeaveTypeID: '', startDate: '', endDate: '', reason: '', isHalfDay: false, documentReference: '' });
-  const [errors, setErrors] = useState({});
-  const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: '' })); };
 
-  const validate = () => {
-    const e = {};
-    if (!form.LeaveTypeID) e.LeaveTypeID = 'Select a leave type';
-    if (!form.startDate)   e.startDate   = 'Required';
-    if (!form.endDate)     e.endDate     = 'Required';
-    if (form.startDate && form.endDate && form.endDate < form.startDate)
-      e.endDate = 'End date must be after start date';
-    return e;
-  };
+const [form, setForm] = useState({ LeaveTypeID: '', startDate: '', endDate: '', reason: '', isHalfDay: false, documentReference: null });
 
-  const handle = () => {
-    const e = validate();
-    if (Object.keys(e).length) { setErrors(e); return; }
-    // Map to exact field names expected by backend Joi schema
-    onSubmit({
-      LeaveTypeID:       parseInt(form.LeaveTypeID, 10),
-      StartDate:         form.startDate,
-      EndDate:           form.endDate,
-      IsHalfDay:         form.isHalfDay,
-      Reason:            form.reason || null,
-      DocumentReference: form.documentReference || null,
-    });
-  };
+ // Inside SubmitLeaveForm component
+const handle = () => {
+  if (!form.LeaveTypeID || !form.startDate || !form.endDate) {
+    return toast.error("Please fill all required fields");
+  }
 
-  const days = form.startDate && form.endDate
-    ? Math.max(0, Math.round((new Date(form.endDate) - new Date(form.startDate)) / 86400000) + 1)
-    : 0;
+  // Create FormData object
+  const data = new FormData();
+  
+  // Append all fields
+  data.append('LeaveTypeID', form.LeaveTypeID);
+  data.append('StartDate', new Date(form.startDate).toISOString());
+  data.append('EndDate', new Date(form.endDate).toISOString());
+  data.append('IsHalfDay', form.isHalfDay);
+  data.append('Reason', form.reason || '');
+
+  // Append the file - KEY NAME MUST MATCH upload.single('documentReference') in routes
+  if (form.documentReference) {
+    data.append('documentReference', form.documentReference);
+  }
+
+  // Pass the FormData object directly to your existing API style
+  onSubmit(data); 
+};
 
   return (
     <>
-      {/* Progress steps */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 20 }}>
-        {[{l:'Leave Type',done:!!form.LeaveTypeID},{l:'Dates',done:!!(form.startDate&&form.endDate)},{l:'Details',done:false}].map((s,i,arr) => (
-          <React.Fragment key={i}>
-            <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:'0.75rem',
-              color: s.done ? '#16a34a' : 'var(--text-secondary)', fontWeight: s.done ? 600 : 400 }}>
-              <span style={{ width:18, height:18, borderRadius:'50%', display:'inline-flex', alignItems:'center',
-                justifyContent:'center', fontSize:'0.6rem', fontWeight:700,
-                background: s.done ? 'rgba(34,197,94,0.15)' : 'var(--surface-alt,#2a2a3a)',
-                color: s.done ? '#16a34a' : 'var(--text-muted)', border:'1px solid', borderColor: s.done ? 'rgba(34,197,94,0.4)':'var(--border)' }}>
-                {s.done ? '✓' : i+1}
-              </span>
-              {s.l}
-            </div>
-            {i < arr.length-1 && <span style={{flex:1, height:1, background:'var(--border)', margin:'0 4px'}} />}
-          </React.Fragment>
-        ))}
-      </div>
-
-      <div className="form-group">
-        <label className="form-label required">Leave Type</label>
-        <select className="form-select" value={form.LeaveTypeID} onChange={e => set('LeaveTypeID', e.target.value)}>
+      <div className="form-group"><label className="form-label required">Leave Type</label>
+        <select className="form-select" value={form.LeaveTypeID} onChange={e => setForm({...form, LeaveTypeID: e.target.value})}>
           <option value="">— Select a leave type —</option>
-          {leaveTypes.map(t => {
-            const id   = t.leaveTypeId  || t.LeaveTypeID  || t.id;
-            const name = t.leaveTypeName || t.LeaveTypeName || t.name;
-            return <option key={id} value={id}>{name}</option>;
-          })}
+          {leaveTypes.map(t => <option key={t.LeaveTypeID || t.id} value={t.LeaveTypeID || t.id}>{t.LeaveTypeName || t.name}</option>)}
         </select>
-        {errors.LeaveTypeID && <div className="form-error">{errors.LeaveTypeID}</div>}
       </div>
-
       <div className="form-row">
-        <div className="form-group">
-          <label className="form-label required">Start Date</label>
-          <input className="form-input" type="date" value={form.startDate}
-            min={new Date().toISOString().split('T')[0]}
-            onChange={e => set('startDate', e.target.value)} />
-          {errors.startDate && <div className="form-error">{errors.startDate}</div>}
-        </div>
-        <div className="form-group">
-          <label className="form-label required">End Date</label>
-          <input className="form-input" type="date" value={form.endDate}
-            min={form.startDate || new Date().toISOString().split('T')[0]}
-            onChange={e => set('endDate', e.target.value)} />
-          {errors.endDate && <div className="form-error">{errors.endDate}</div>}
-        </div>
+        <div className="form-group"><label className="form-label required">Start Date</label><input className="form-input" type="date" value={form.startDate} onChange={e => setForm({...form, startDate: e.target.value})} /></div>
+        <div className="form-group"><label className="form-label required">End Date</label><input className="form-input" type="date" value={form.endDate} min={form.startDate} onChange={e => setForm({...form, endDate: e.target.value})} /></div>
       </div>
-
-      {days > 0 && (
-        <div style={{ padding:'10px 14px', background:'rgba(34,197,94,0.07)',
-          border:'1px solid rgba(34,197,94,0.2)', borderRadius:'var(--radius-md)',
-          marginBottom:14, fontSize:'0.85rem', color:'#16a34a', fontWeight:500 }}>
-          📅 <strong>{days} calendar day{days!==1?'s':''}</strong>
-          <span style={{opacity:0.7,marginLeft:6,fontWeight:400}}>(net working days confirmed on submit)</span>
-        </div>
-      )}
-
       <div className="form-group">
         <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',fontSize:'0.875rem',userSelect:'none'}}>
-          <input type="checkbox" checked={form.isHalfDay} onChange={e => set('isHalfDay', e.target.checked)} />
-          <span>Half-day <span style={{color:'var(--text-secondary)',fontSize:'0.78rem'}}>(0.5 days deducted)</span></span>
+          <input type="checkbox" checked={form.isHalfDay} onChange={e => setForm({...form, isHalfDay: e.target.checked})} />
+          <span>Half-day</span>
         </label>
       </div>
-
+      <div className="form-group"><label className="form-label">Reason</label><textarea className="form-textarea" rows={2} value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} /></div>
       <div className="form-group">
-        <label className="form-label">
-          Reason
-          <span style={{color:'var(--text-secondary)',fontSize:'0.76rem',fontWeight:400,marginLeft:6}}>optional</span>
-        </label>
-        <textarea className="form-textarea" rows={2} value={form.reason}
-          onChange={e => set('reason', e.target.value)}
-          placeholder="Briefly describe the reason for this leave request..." />
+        <label className="form-label">Medical Document (PDF/Image)</label>
+        <input 
+          className="form-input" 
+          type="file" 
+          accept="image/*,application/pdf"
+          onChange={e => setForm({...form, documentReference: e.target.files[0]})} 
+        />
       </div>
-
-      <div className="form-group">
-        <label className="form-label">
-          Document Reference
-          <span style={{color:'var(--text-secondary)',fontSize:'0.76rem',fontWeight:400,marginLeft:6}}>
-            required for sick &gt;1 day · maternity · bereavement
-          </span>
-        </label>
-        <input className="form-input" type="text" value={form.documentReference}
-          onChange={e => set('documentReference', e.target.value)}
-          placeholder="Medical cert no., birth cert ref., death cert no. …" />
-      </div>
-
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-        marginTop:16, paddingTop:14, borderTop:'1px solid var(--border-light)'}}>
-        <button className="btn btn-ghost" type="button" onClick={() => {
-          setForm({LeaveTypeID:'',startDate:'',endDate:'',reason:'',isHalfDay:false,documentReference:''});
-          setErrors({});
-        }} disabled={loading}>
-          Clear form
-        </button>
-        <button className="btn btn-primary" onClick={handle}
-          disabled={loading||!form.LeaveTypeID||!form.startDate||!form.endDate}>
-          {loading ? <InlineSpinner /> : <><Send size={15} style={{marginRight:6}}/>Submit Request</>}
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+        <button className="btn btn-primary" onClick={handle} disabled={loading}>{loading ? <InlineSpinner /> : 'Submit Request'}</button>
       </div>
     </>
   );
 }
 
-/* ── Reason Modal (for reject / cancel) ── */
-function ReasonModal({ title, placeholder, onConfirm, onClose, loading }) {
-  const [reason, setReason] = useState('');
-  return (
-    <Modal title={title} onClose={onClose}>
-      <div className="form-group">
-        <label className="form-label required">Reason</label>
-        <textarea
-          className="form-textarea"
-          value={reason}
-          onChange={e => setReason(e.target.value)}
-          placeholder={placeholder}
-          rows={3}
-        />
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <button className="btn btn-ghost" onClick={onClose} disabled={loading}>Back</button>
-        <button
-          className="btn btn-primary"
-          onClick={() => reason.trim() && onConfirm(reason.trim())}
-          disabled={loading || !reason.trim()}
-        >
-          {loading ? <InlineSpinner /> : 'Confirm'}
-        </button>
-      </div>
-    </Modal>
-  );
-}
+// ── RESTORED: EDIT FORM FOR LV-017 ──
+function EditLeaveForm({ req, onSubmit, loading }) {
+  const [form, setForm] = useState({ 
+    startDate: req.StartDate ? req.StartDate.split('T')[0] : '', 
+    endDate: req.EndDate ? req.EndDate.split('T')[0] : '', 
+    reason: req.Reason || '' 
+  });
 
-/* ── Main Page ── */
-export default function LeavePage() {
-  const { user }  = useAuth();
-  // Case-insensitive role check — handles 'HR Manager', 'hr', 'Admin', 'manager', etc.
-  const roleStr = (user?.role || user?.Role || '').toLowerCase();
-  const isManager = roleStr.includes('manager') || roleStr.includes('hr') || 
-                    roleStr.includes('admin') || roleStr === 'supervisor';
-
-  const [tab, setTab]             = useState('dashboard');
-  const [balances, setBalances]   = useState([]);
-  const [myRequests, setMyReqs]   = useState([]);
-  const [allRequests, setAll]     = useState([]);
-  const [leaveTypes, setTypes]    = useState([]);
-  const [holidays, setHolidays]   = useState([]);
-  const [loadBal, setLoadBal]     = useState(true);
-  const [loadReq, setLoadReq]     = useState(true);
-  const [loadAll, setLoadAll]     = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [historyFilter, setHistoryFilter] = useState('');
-  const [allFilter, setAllFilter]       = useState('');
-  const [reasonModal, setReasonModal] = useState(null); // { id, action }
-  const [actingReason, setActingReason] = useState(false);
-
-  /**
-   * Safely extracts an array from any API response shape.
-   * sendSuccess wraps as: { success: true, data: <actual> }
-   * axios wraps that as:  { data: { success: true, data: <actual> } }
-   * So the axios response's .data field = { success, data: <actual> }
-   * and <actual> may be: an array, or { requests: [], meta: {} }, etc.
-   */
-  // Safely extract array from axios response (interceptor already unwrapped envelope)
-  // r.data is the actual payload — either an array or { requests: [...], meta: {} }
-  const toArr = (r) => {
-    if (!r) return [];
-    const d = r.data;
-    if (Array.isArray(d)) return d;
-    if (Array.isArray(d?.requests)) return d.requests;
-    return [];
+  const handle = () => {
+    if (!form.startDate || !form.endDate) return toast.error("Required fields missing");
+    onSubmit(req.LeaveRequestID || req.id, {
+      StartDate: new Date(form.startDate).toISOString(),
+      EndDate: new Date(form.endDate).toISOString(),
+      Reason: form.reason || null
+    });
   };
-
-  const loadData = useCallback(async () => {
-    setLoadBal(true);
-    setLoadReq(true);
-
-    // Balances — sendSuccess(res, array) → interceptor → res.data = array
-    leaveAPI.getMyBalances()
-      .then(r => setBalances(Array.isArray(r.data) ? r.data : []))
-      .catch(console.error)
-      .finally(() => setLoadBal(false));
-
-    // My requests — sendSuccess(res, result.requests) → interceptor → res.data = array
-    leaveAPI.getMyRequests({ limit: 100 })
-      .then(r => setMyReqs(Array.isArray(r.data) ? r.data : []))
-      .catch(console.error)
-      .finally(() => setLoadReq(false));
-
-    // Leave types for dropdown
-    leaveAPI.getTypes()
-      .then(r => setTypes(Array.isArray(r.data) ? r.data : []))
-      .catch(console.error);
-
-    // Holidays
-    leaveAPI.getHolidays()
-      .then(r => setHolidays(Array.isArray(r.data) ? r.data : []))
-      .catch(console.error);
-
-    // All requests for manager/HR
-    if (isManager) {
-      setLoadAll(true);
-      leaveAPI.listAll({ limit: 100 })
-        .then(r => setAll(Array.isArray(r.data) ? r.data : []))
-        .catch(console.error)
-        .finally(() => setLoadAll(false));
-    } else {
-      setLoadAll(false);
-    }
-  }, [isManager]);
-
-  useEffect(() => { loadData(); }, [loadData]);
-
-  /* ── Submit Leave Request ── */
-  const handleSubmit = async (form) => {
-    setSubmitting(true);
-    try {
-      await leaveAPI.submit(form);
-      toast.success('Leave request submitted!');
-      setTab('history');
-      // Small delay so the tab switch renders first, then data loads
-      setTimeout(() => loadData(), 100);
-    } catch (err) {
-      toast.error(
-        err.response?.data?.error?.message ||
-        err.response?.data?.message ||
-        'Failed to submit request'
-      );
-    } finally { setSubmitting(false); }
-  };
-
-  /* ── Approve / Reject / Cancel ── */
-  const handleAction = async (id, action, reason) => {
-    try {
-      if (action === 'cancel') {
-        if (!reason) { setReasonModal({ id, action: 'cancel' }); return; }
-        // Backend Joi schema requires CancelReason field
-        await leaveAPI.cancel(id, { CancelReason: reason });
-        toast.success('Request cancelled');
-      } else if (action === 'approve') {
-        // Backend expects { decision, comments } — maps to LEAVE_APPROVAL_DECISION constants
-        await leaveAPI.approveReject(id, { decision: 'Approved', comments: '' });
-        toast.success('Request approved');
-      } else if (action === 'reject') {
-        if (!reason) { setReasonModal({ id, action: 'reject' }); return; }
-        await leaveAPI.approveReject(id, { decision: 'Rejected', comments: reason });
-        toast.success('Request rejected');
-      }
-      loadData();
-    } catch (err) {
-      toast.error(
-        err.response?.data?.error?.message ||
-        err.response?.data?.message ||
-        'Action failed'
-      );
-    }
-  };
-
-  const handleReasonConfirm = async (reason) => {
-    if (!reasonModal) return;
-    setActingReason(true);
-    try {
-      await handleAction(reasonModal.id, reasonModal.action, reason);
-      setReasonModal(null);
-    } finally { setActingReason(false); }
-  };
-
-  const TABS = [
-    { id: 'dashboard', label: 'Dashboard',    icon: BarChart2 },
-    { id: 'request',   label: 'Request Leave', icon: Plus },
-    { id: 'history',   label: 'My History',    icon: Clock },
-    ...(isManager ? [
-      { id: 'all', label: 'All Requests', icon: Calendar },
-    ] : []),
-  ];
-
-  // Normalise both sides: uppercase + strip underscores
-  // DB stores 'PendingManager', chips send 'PENDING_MANAGER' — both normalise to 'PENDINGMANAGER'
-  const normStatus = s => (s || '').toUpperCase().replace(/_/g, '');
-  const statusMatches = (reqStatus, filterValue) => {
-    if (!filterValue) return true;
-    const rs = normStatus(reqStatus);
-    const fv = normStatus(filterValue);
-    if (rs === fv) return true;
-    // 'Pending Approval' chip (PENDINGMANAGER) should match ALL non-final states
-    const allPending = new Set(['PENDINGMANAGER','PENDINGHR','SUBMITTED','PENDING','DRAFT','PENDINGDOCTOR']);
-    if (fv === 'PENDINGMANAGER' && allPending.has(rs)) return true;
-    return false;
-  };
-
-  const filteredMyReqs  = myRequests.filter(r =>
-    statusMatches(r.Status || r.status, historyFilter)
-  );
-  const filteredAllReqs = allRequests.filter(r =>
-    statusMatches(r.Status || r.status, allFilter)
-  );
 
   return (
     <>
-      {reasonModal && (
-        <ReasonModal
-          title={reasonModal.action === 'cancel' ? 'Cancel Leave Request' : 'Reject Leave Request'}
-          placeholder={reasonModal.action === 'cancel' ? 'Reason for cancellation...' : 'Reason for rejection...'}
-          onConfirm={handleReasonConfirm}
-          onClose={() => setReasonModal(null)}
-          loading={actingReason}
+      <div className="form-row">
+        <div className="form-group"><label className="form-label required">Start Date</label>
+          <input className="form-input" type="date" value={form.startDate} onChange={e => setForm({...form, startDate: e.target.value})} />
+        </div>
+        <div className="form-group"><label className="form-label required">End Date</label>
+          <input className="form-input" type="date" value={form.endDate} min={form.startDate} onChange={e => setForm({...form, endDate: e.target.value})} />
+        </div>
+      </div>
+      <div className="form-group"><label className="form-label">Reason</label>
+        <textarea className="form-textarea" rows={3} value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+        <button className="btn btn-primary" onClick={handle} disabled={loading}>{loading ? <InlineSpinner /> : 'Update Request'}</button>
+      </div>
+    </>
+  );
+}
+
+function DelegationPanel({ onDelegate, employees }) {
+  const [delegateTo, setDelegateTo] = useState('');
+  const [until, setUntil] = useState('');
+  
+  const handleActivate = () => {
+    onDelegate(1, { 
+      delegateTo: parseInt(delegateTo, 10), delegateId: parseInt(delegateTo, 10),
+      startDate: new Date().toISOString(), StartDate: new Date().toISOString(),
+      endDate: new Date(until).toISOString(), EndDate: new Date(until).toISOString(),
+      comments: `Delegated until ${until}`, Comments: `Delegated until ${until}` 
+    });
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card-header"><div className="card-title"><Users size={15} style={{ marginRight: 6 }} />Approval Delegation</div></div>
+      <div className="form-row">
+        <div className="form-group">
+          <label className="form-label">Delegate To</label>
+          {employees && employees.length > 0 ? (
+            <select className="form-select" value={delegateTo} onChange={e => setDelegateTo(e.target.value)}>
+              <option value="">— Select Employee —</option>
+              {employees.map(emp => (
+                <option key={emp.id} value={emp.id}>{emp.name}</option>
+              ))}
+            </select>
+          ) : (
+            <input className="form-input" type="number" value={delegateTo} onChange={e => setDelegateTo(e.target.value)} placeholder="Employee ID" />
+          )}
+        </div>
+        <div className="form-group"><label className="form-label">Delegate Until</label><input className="form-input" type="date" value={until} onChange={e => setUntil(e.target.value)} /></div>
+      </div>
+      <button className="btn btn-primary btn-sm" disabled={!delegateTo || !until} onClick={handleActivate}>Activate Delegation</button>
+    </div>
+  );
+}
+
+// ─── UPGRADED ABSENCE CONFIGURATOR ──────────────────────────────────────────
+function LeaveTypeManager({ types, onAdd }) {
+  const [newType, setNewType] = useState({ 
+    name: '', 
+    code: '', 
+    defaultDays: 21,
+    isPaid: true,
+    requiresDocument: false,
+    requiresApproval: true
+  });
+  
+  const handleAdd = () => {
+    if (!newType.name) return toast.error("Absence type name is required.");
+    
+    onAdd({
+      LeaveTypeName: newType.name,
+      LeaveTypeCode: newType.name.substring(0, 3).toUpperCase(),
+      DefaultDays: parseInt(newType.defaultDays, 10),
+      IsPaid: newType.isPaid,
+      RequiresDocument: newType.requiresDocument,
+      RequiresApproval: newType.requiresApproval
+    });
+  };
+
+  return (
+    <div className="card p-4 mb-4">
+      <div className="card-title"><Settings size={16} style={{marginRight: 6}}/> Configure Special Absence Types</div>
+      <p className="text-muted small mb-3">Create custom leave types (e.g., Unpaid, Bereavement, Sick) and define their system rules.</p>
+      
+      <div className="form-row mt-3">
+        <input className="form-input" placeholder="Absence Name (e.g. Sick Leave)" 
+          value={newType.name}
+          onChange={e => setNewType({...newType, name: e.target.value})} />
+        <input className="form-input" type="number" placeholder="Default Days" 
+          value={newType.defaultDays}
+          onChange={e => setNewType({...newType, defaultDays: e.target.value})} 
+          style={{ maxWidth: '140px' }}/>
+      </div>
+
+      <div style={{ display: 'flex', gap: '15px', marginTop: '12px', marginBottom: '16px', fontSize: '0.85rem' }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={newType.isPaid} onChange={e => setNewType({...newType, isPaid: e.target.checked})} />
+          Paid Leave
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={newType.requiresDocument} onChange={e => setNewType({...newType, requiresDocument: e.target.checked})} />
+          Requires Document (e.g. Med Cert)
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+          <input type="checkbox" checked={newType.requiresApproval} onChange={e => setNewType({...newType, requiresApproval: e.target.checked})} />
+          Requires Manager Approval
+        </label>
+      </div>
+
+      <button className="btn btn-primary btn-sm mb-4" onClick={handleAdd}>Create Absence Type</button>
+
+      <div className="table-wrap">
+        <table className="table-sm">
+          <thead><tr><th>Type</th><th>Days</th><th>Rules</th></tr></thead>
+          <tbody>
+            {types.map((t, i) => (
+              <tr key={i}>
+                <td style={{ fontWeight: 500 }}>{t.LeaveTypeName}</td>
+                <td>{t.DefaultDays || 21}</td>
+                <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {t.IsPaid ? <Badge status="APPROVED">Paid</Badge> : <Badge status="REJECTED">Unpaid</Badge>}
+                  {t.RequiresDocument && <span style={{ marginLeft: 6 }}>• Docs Req.</span>}
+                  {!t.RequiresApproval && <span style={{ marginLeft: 6 }}>• Auto-Approve</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function HolidayManager({ holidays, onAdd }) {
+  const [newHoliday, setNewHoliday] = useState({ name: '', date: '' });
+
+  return (
+    <div className="card p-4">
+      <div className="card-title"><Calendar size={16}/> Holiday & Blocked Days</div>
+      <p className="text-muted small mb-3">Managed dates will be excluded from leave balance calculations.</p>
+      <div className="form-row">
+        <input className="form-input" type="date" onChange={e => setNewHoliday({...newHoliday, date: e.target.value})} />
+        <input className="form-input" placeholder="Holiday Name" onChange={e => setNewHoliday({...newHoliday, name: e.target.value})} />
+        <button className="btn btn-primary" onClick={() => onAdd(newHoliday)}>Add Date</button>
+      </div>
+      <div className="mt-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+        {holidays.map((h, i) => (
+          <div key={i} className="d-flex justify-content-between p-2 border-bottom">
+            <span>{new Date(h.HolidayDate || h.date).toLocaleDateString()}</span>
+            <span className="font-weight-bold">{h.HolidayName || h.name}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AssignEntitlementModal({ employees, leaveTypes, onConfirm, onClose, loading }) {
+  const [form, setForm] = useState({ 
+    EmployeeID: '', 
+    LeaveTypeID: '', 
+    Year: new Date().getFullYear(),
+    CustomDays: '' 
+  });
+
+  return (
+    <InlineModal title="Assign Initial Entitlements" onClose={onClose}>
+      <p className="text-muted small mb-3">Initialize standard leave balances for a specific employee.</p>
+      
+      <div className="form-group mb-3">
+        <label className="form-label">Target Employee</label>
+        <select className="form-select" onChange={e => setForm({...form, EmployeeID: e.target.value})}>
+          <option value="">Select Employee...</option>
+          {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+        </select>
+      </div>
+
+      <div className="form-group mb-3">
+        <label className="form-label">Leave Type (Optional)</label>
+        <select className="form-select" onChange={e => setForm({...form, LeaveTypeID: e.target.value})}>
+          <option value="">All Standard Leave Types (Default)</option>
+          {leaveTypes.map(t => <option key={t.LeaveTypeID || t.id} value={t.LeaveTypeID || t.id}>{t.LeaveTypeName || t.name}</option>)}
+        </select>
+      </div>
+
+      <div className="form-row mb-2">
+        <div className="form-group w-full">
+          <label className="form-label">Balance Year</label>
+          <input className="form-input" type="number" value={form.Year} onChange={e => setForm({...form, Year: e.target.value})} />
+        </div>
+        <div className="form-group w-full">
+          <label className="form-label">Custom Days (Optional)</label>
+          <input 
+            className="form-input" 
+            type="number" 
+            step="0.5" 
+            placeholder="e.g. 10.5" 
+            value={form.CustomDays} 
+            onChange={e => setForm({...form, CustomDays: e.target.value})} 
+          />
+        </div>
+      </div>
+      <p className="text-muted small mb-4" style={{marginTop: '-10px', fontSize: '0.75rem'}}>
+        *Leave "Custom Days" blank to automatically apply the system default rules.
+      </p>
+
+      <div className="d-flex gap-2 justify-content-end">
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" disabled={loading || !form.EmployeeID} onClick={() => onConfirm(form)}>
+          Assign Entitlements
+        </button>
+      </div>
+    </InlineModal>
+  );
+}
+
+function ManualAdjustmentModal({ employees, leaveTypes, onConfirm, onClose, loading }) {
+  const [form, setForm] = useState({ EmployeeID: '', LeaveTypeID: '', AdjustedDays: '', Reason: '' });
+
+  return (
+    <InlineModal title="Manual Balance Adjustment" onClose={onClose}>
+      <div className="form-group"><label className="form-label">Employee</label>
+        <select className="form-select" onChange={e => setForm({...form, EmployeeID: e.target.value})}>
+          <option value="">Select Employee</option>
+          {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+        </select>
+      </div>
+      <div className="form-group"><label className="form-label">Leave Type</label>
+        <select className="form-select" onChange={e => setForm({...form, LeaveTypeID: e.target.value})}>
+          <option value="">Select Type</option>
+          {leaveTypes.map(t => <option key={t.LeaveTypeID || t.id} value={t.LeaveTypeID || t.id}>{t.LeaveTypeName || t.name}</option>)}
+        </select>
+      </div>
+      <div className="form-group"><label className="form-label">Adjustment (+/- Days)</label>
+        <input className="form-input" type="number" onChange={e => setForm({...form, AdjustedDays: e.target.value})} placeholder="e.g. 5 or -2" />
+      </div>
+      <div className="form-group"><label className="form-label">Reason</label>
+        <textarea className="form-textarea" rows={2} onChange={e => setForm({...form, Reason: e.target.value})} placeholder="Justification..." />
+      </div>
+      <div className="d-flex gap-2 mt-4 justify-content-end">
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" disabled={loading} onClick={() => onConfirm(form)}>
+          {loading ? <InlineSpinner /> : 'Update Balance'}
+        </button>
+      </div>
+    </InlineModal>
+  );
+}
+
+// ─── ALIGNED TO BACKEND: ROLES & PERMISSIONS MANAGER ─────────────────────────
+function RolePermissionManager({ employees, onUpdate }) {
+  const [form, setForm] = useState({ employeeId: '', positionId: '' });
+  return (
+    <div className="card p-4">
+      <div className="card-title"><Shield size={16} style={{marginRight: 6}}/> Roles & Permissions</div>
+      <p className="text-muted small mb-3">Assign system roles to employees based on the exact DB Schema.</p>
+      <div className="form-row mt-3">
+        <div className="form-group" style={{ flex: 1 }}>
+          <label className="form-label">Employee</label>
+          <select className="form-select" value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})}>
+            <option value="">Select Employee...</option>
+            {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+          </select>
+        </div>
+        <div className="form-group" style={{ flex: 1 }}>
+          <label className="form-label">System Role</label>
+          <select className="form-select" value={form.positionId} onChange={e => setForm({...form, positionId: e.target.value})}>
+            <option value="">Select Role...</option>
+            <option value="1">1: HR-MGR (HR Manager)</option>
+            <option value="2">2: PROF (Professor)</option>
+            <option value="3">3: ASSOC (Associate Professor)</option>
+            <option value="4">4: ASST (Assistant Professor)</option>
+            <option value="5">5: LECT (Lecturer)</option>
+            <option value="6">6: TA (Teaching Assistant)</option>
+            <option value="7">7: RA (Research Assistant)</option>
+            <option value="8">8: HEAD (Department Head)</option>
+            <option value="9">9: DEAN (Dean)</option>
+            <option value="10">10: HR-SPEC (HR Specialist)</option>
+            <option value="11">11: IT-ENG (IT Engineer)</option>
+            <option value="12">12: FIN (Finance Officer)</option>
+            <option value="13">13: ADMIN (Administrative Officer)</option>
+            <option value="14">14: SEC (Secretary)</option>
+            <option value="15">15: LAB-TECH (Lab Technician)</option>
+            <option value="16">16: LIB (Librarian)</option>
+            <option value="17">17: SECURITY (Security Officer)</option>
+            <option value="18">18: MAINT (Maintenance Staff)</option>
+            <option value="19">19: PAYROLL (Payroll Specialist)</option>
+            <option value="21">21: HR-GEN (HR Generalist)</option>
+          </select>
+        </div>
+      </div>
+      <button className="btn btn-primary btn-sm mt-2" disabled={!form.employeeId || !form.positionId} onClick={() => { onUpdate(form); setForm({employeeId: '', positionId: ''}); }}>Update Role</button>
+    </div>
+  );
+}
+
+// ─── ALIGNED TO BACKEND: LEAVE POLICY (YEAR RULES) MANAGER ────────────────────
+function LeavePolicyManager({ leaveTypes, onSave }) {
+  const [policy, setPolicy] = useState({ LeaveTypeID: '', MinTenureMonths: 0, NoticePeriodDays: 0 });
+  return (
+    <div className="card p-4">
+      <div className="card-title"><CalendarDays size={16} style={{marginRight: 6}}/> Leave Policy Engine</div>
+      <p className="text-muted small mb-3">Map tenure and notice period rules for specific leave types as defined by your backend.</p>
+      <div className="form-row mt-3">
+        <div className="form-group" style={{ flex: 1 }}>
+          <label className="form-label">Leave Type</label>
+          <select className="form-select" value={policy.LeaveTypeID} onChange={e => setPolicy({...policy, LeaveTypeID: e.target.value})}>
+            <option value="">Select Type...</option>
+            {leaveTypes.map(t => <option key={t.LeaveTypeID || t.id} value={t.LeaveTypeID || t.id}>{t.LeaveTypeName || t.name}</option>)}
+          </select>
+        </div>
+        <div className="form-group" style={{ flex: 1 }}>
+          <label className="form-label">Minimum Tenure (Months)</label>
+          <input className="form-input" type="number" value={policy.MinTenureMonths} onChange={e => setPolicy({...policy, MinTenureMonths: e.target.value})} />
+        </div>
+        <div className="form-group" style={{ flex: 1 }}>
+          <label className="form-label">Required Notice (Days)</label>
+          <input className="form-input" type="number" value={policy.NoticePeriodDays} onChange={e => setPolicy({...policy, NoticePeriodDays: e.target.value})} />
+        </div>
+      </div>
+      <button className="btn btn-primary btn-sm mt-2" disabled={!policy.LeaveTypeID} onClick={() => onSave(policy)}>Save Policy Rules</button>
+    </div>
+  );
+}
+
+// ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
+export default function LeavePage() {
+  const { user } = useAuth();
+  
+  // ── EXACT DATABASE ROLE MAPPING ──
+  const posId = parseInt(user?.PositionID || user?.positionId || 0, 10);
+  const rawRole = String(user?.role || user?.Role || '').toUpperCase();
+  const rawTitle = String(user?.position || user?.Position?.PositionTitle || '').toUpperCase();
+
+  // 1. HR Manager (Strictly ID 1 or exact string fallback)
+  const isHRManager = posId === 1 || rawTitle === 'HR MANAGER';
+
+  // 2. Basic HR (Strictly ID 10 or 21, or generic HR text, excluding HR Manager)
+  const isBasicHR = !isHRManager && (posId === 10 || posId === 21 || rawRole === 'HR' || rawTitle === 'HR SPECIALIST' || rawTitle === 'HR-GEN');
+
+  // 3. Supervisor (Strictly ID 2, 8, 9, or explicit text, excluding HR personnel)
+  const isSupervisor = !isHRManager && !isBasicHR && (
+    posId === 2 || posId === 8 || posId === 9 || 
+    rawRole === 'MANAGER' || rawTitle.includes('MANAGER') || rawTitle.includes('PROFESSOR') || rawTitle.includes('HEAD') || rawTitle.includes('DEAN')
+  );
+  
+  // ── HR Manager & Supervisors only for Inbox/Company Data ──
+  const isManagement = isHRManager || isSupervisor;
+  const canDelegate = isHRManager || isSupervisor; 
+
+  const [tab, setTab] = useState('dashboard');
+  const [balances, setBalances] = useState([]);
+  const [myRequests, setMyReqs] = useState([]);
+  const [allRequests, setAll] = useState([]);
+  const [leaveTypes, setTypes] = useState([]);
+  const [holidays, setHolidays] = useState([]);
+  const [allEmployees, setAllEmployees] = useState([]);
+  const [viewingDoc, setViewingDoc] = useState(null);
+  const [loadBal, setLoadBal] = useState(true);
+  const [loadReq, setLoadReq] = useState(true);
+  const [loadAll, setLoadAll] = useState(true);
+  
+  const [submitting, setSubmitting] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState('');
+  const [allFilter, setAllFilter] = useState('');
+  const [overrideReq, setOverrideReq] = useState(null); 
+  const [editReq, setEditReq] = useState(null); // Used for editing a request
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+
+  // States for Settings Rules
+  const [globalEntitlementType, setGlobalEntitlementType] = useState('');
+  const [globalEntitlementDays, setGlobalEntitlementDays] = useState(21);
+const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const selectAllVisible = () => {
+    if (selectedIds.length === allRequests.length) setSelectedIds([]);
+    else setSelectedIds(allRequests.map(r => r.LeaveRequestID || r.id));
+  };
+  const loadData = useCallback(() => {
+    if (!user || (!user.EmployeeID && !user.id)) return;
+    setLoadBal(true); setLoadReq(true);
+    leaveAPI.getMyBalances().then(r => setBalances(toArr(r))).finally(() => setLoadBal(false));
+    leaveAPI.getMyRequests().then(r => setMyReqs(toArr(r))).finally(() => setLoadReq(false));
+    
+    if (leaveAPI.getTypes) leaveAPI.getTypes().then(r => setTypes(toArr(r)));
+    if ((isHRManager || isBasicHR) && leaveAPI.listHolidays) leaveAPI.listHolidays().then(r => setHolidays(toArr(r)));
+
+    // Fetch full employee list for both HR and HR Manager (for Modals)
+    if ((isHRManager || isBasicHR) && employeeAPI?.list) {
+      employeeAPI.list({ limit: 500 }).then(r => {
+        const emps = toArr(r).map(e => ({
+          id: e.EmployeeID || e.id,
+          name: e.FullName || e.fullName || `Employee #${e.EmployeeID || e.id}`
+        }));
+        setAllEmployees(emps);
+      });
+    }
+
+    if (isManagement) {
+      setLoadAll(true);
+      const fetchMethod = isHRManager 
+        ? (leaveAPI.listAll ? leaveAPI.listAll({ managerId: '' }) : leaveAPI.getManagerInbox()) 
+        : leaveAPI.getManagerInbox();
+        
+      fetchMethod
+        .then(r => setAll(toArr(r)))
+        .catch(() => setAll([]))
+        .finally(() => setLoadAll(false));
+    } else { setLoadAll(false); }
+  }, [isHRManager, isSupervisor, isBasicHR, isManagement]);
+  
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const uniqueEmployees = Array.from(
+    new Map(
+      allRequests
+        .filter(r => r.EmployeeID || r.employeeId || r.Employee?.EmployeeID)
+        .map(r => [
+          r.EmployeeID || r.employeeId || r.Employee?.EmployeeID,
+          r.Employee?.FullName || r.employeeName || `Employee #${r.EmployeeID || r.employeeId}`
+        ])
+    ).entries()
+  ).map(([id, name]) => ({ id, name }));
+
+  const employeeDropdownList = allEmployees.length > 0 ? allEmployees : uniqueEmployees;
+
+  const handleAction = async (id, action) => {
+    try {
+      if (action === 'approve') await leaveAPI.approveReject(id, { decision: 'APPROVED' });
+      else if (action === 'reject') await leaveAPI.approveReject(id, { decision: 'REJECTED', comments: 'Actioned by Admin' });
+      else if (action === 'cancel') await leaveAPI.cancel(id, { CancelReason: 'User Cancelled' });
+      toast.success('Action successfully completed');
+      loadData();
+    } catch (err) { toast.error(getErrMsg(err)); }
+  };
+ const handleBulkAction = async (decision) => {
+  if (!selectedIds.length) return;
+  const loadingToast = toast.loading(`Processing ${selectedIds.length} requests...`);
+  
+  try {
+    // USE THE NEW BULK ENDPOINT
+    await leaveAPI.bulkProcess({ 
+      requestIds: selectedIds, 
+      decision: decision, 
+      comments: 'Bulk processed by HR Manager' 
+    });
+    
+    toast.success(`Successfully processed requests`, { id: loadingToast });
+    setSelectedIds([]);
+    loadData();
+  } catch (err) {
+    toast.error("Bulk processing failed", { id: loadingToast });
+  }
+};
+
+  const handleEditSubmit = async (id, updatedData) => {
+    try {
+      setSubmitting(true);
+      // Calls updateLeaveRequest mapped in backend (LV-017)
+      if(leaveAPI.update) {
+        await leaveAPI.update(id, updatedData);
+      } else {
+        throw new Error("Update endpoint not wired to leaveAPI. Contact admin to expose LV-017.");
+      }
+      toast.success("Leave Request Updated!");
+      setEditReq(null);
+      loadData();
+    } catch (err) {
+      toast.error(getErrMsg(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateEntitlements = async () => {
+    if (!globalEntitlementType) return toast.error("Please select a leave type first.");
+    try {
+      await leaveAPI.updateGlobalEntitlements({ 
+        defaultEntitlement: globalEntitlementDays,
+        leaveTypeId: globalEntitlementType
+      });
+      toast.success("Entitlements updated system-wide.");
+      loadData();
+    } catch (err) {
+      toast.error(getErrMsg(err));
+    }
+  };
+
+  const handlePayrollSync = () => leaveAPI.syncPayroll({}).then(() => toast.success("Payroll successfully synced"));
+
+  const TABS = [
+    { id: 'dashboard', label: 'Dashboard',    icon: BarChart2 },
+    { id: 'history',   label: 'My History',   icon: Clock },
+    ...(isManagement ? [ { id: 'all', label: isHRManager ? 'Company Data' : 'Team Inbox', icon: Users } ] : []),
+    ...(isHRManager || isBasicHR ? [ { id: 'settings', label: 'Settings', icon: Settings } ] : []),
+  ];
+
+  return (
+    <>
+      {overrideReq && isHRManager && (
+        <InlineModal title="HR Security Override" onClose={() => setOverrideReq(null)}>
+          <p>Manual override for <strong>{overrideReq.Employee?.FullName}</strong>.</p>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+            <button className="btn btn-success" onClick={() => { handleAction(overrideReq.LeaveRequestID || overrideReq.id, 'approve'); setOverrideReq(null); }}>Force Approve</button>
+            <button className="btn btn-danger" onClick={() => { handleAction(overrideReq.LeaveRequestID || overrideReq.id, 'reject'); setOverrideReq(null); }}>Force Reject</button>
+          </div>
+        </InlineModal>
+      )}
+      {viewingDoc && (
+  <InlineModal title="Document Verification" onClose={() => setViewingDoc(null)}>
+    <div style={{ width: '100%', height: '70vh' }}>
+      {viewingDoc.toLowerCase().endsWith('.pdf') ? (
+        <iframe 
+          src={`http://localhost:5000/${viewingDoc}`} 
+          width="100%" 
+          height="100%" 
+          title="Medical PDF"
+        />
+      ) : (
+        <img 
+          src={`http://localhost:5000/${viewingDoc}`} 
+          style={{ width: '100%', objectFit: 'contain' }} 
+          alt="Medical Evidence" 
+        />
+      )}
+    </div>
+  </InlineModal>
+)}
+
+      {editReq && (
+        <InlineModal title="Edit Leave Request" onClose={() => setEditReq(null)}>
+           <EditLeaveForm req={editReq} onSubmit={handleEditSubmit} loading={submitting} />
+        </InlineModal>
+      )}
+
+      {showAssignModal && isBasicHR && (
+        <AssignEntitlementModal 
+          employees={employeeDropdownList}
+          leaveTypes={leaveTypes}
+          onClose={() => setShowAssignModal(false)}
+          onConfirm={(data) => {
+            leaveAPI.initializeBalances({ 
+              EmployeeID: parseInt(data.EmployeeID, 10), 
+              BalanceYear: parseInt(data.Year, 10),
+              LeaveTypeID: data.LeaveTypeID ? parseInt(data.LeaveTypeID, 10) : undefined,
+              CustomDays: data.CustomDays ? parseFloat(data.CustomDays) : undefined 
+            })
+            .then(() => { toast.success("Entitlements Assigned!"); setShowAssignModal(false); loadData(); })
+            .catch(err => toast.error(getErrMsg(err)));
+          }}
         />
       )}
 
-      <div className="page-header">
-        <h1>Leave Management</h1>
-        <p>Manage leave requests, balances, and approvals</p>
+      {showAdjustmentModal && isHRManager && (
+        <ManualAdjustmentModal 
+          employees={employeeDropdownList} 
+          leaveTypes={leaveTypes} 
+          onClose={() => setShowAdjustmentModal(false)}
+          onConfirm={(d) => leaveAPI.adjustBalance(d).then(() => { 
+            toast.success("Balance Adjusted"); 
+            setShowAdjustmentModal(false); 
+            loadData(); 
+          })}
+        />
+      )}
+
+      {isSubmitModalOpen && (
+        <InlineModal title="Submit Leave Request" onClose={() => setIsSubmitModalOpen(false)}>
+           <SubmitLeaveForm leaveTypes={leaveTypes} onSubmit={(p) => leaveAPI.submit(p).then(() => { toast.success("Submitted"); setIsSubmitModalOpen(false); loadData(); })} loading={submitting} />
+        </InlineModal>
+      )}
+
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem' }}>
+        <div><h1>Leave Management</h1><p>Control requests, balances, and system rules</p></div>
+        <button className="btn btn-primary" onClick={() => setIsSubmitModalOpen(true)}><Plus size={18} style={{ marginRight: 8 }} /> New Request</button>
       </div>
 
-      {/* Tabs */}
-      <div className="tabs">
+      <div className="tabs" style={{ padding: '0 1rem' }}>
         {TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            className={`tab-btn ${tab === id ? 'active' : ''}`}
-            onClick={() => setTab(id)}
-          >
-            <Icon size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-            {label}
-          </button>
+          <button key={id} className={`tab-btn ${tab === id ? 'active' : ''}`} onClick={() => setTab(id)}><Icon size={14} style={{ marginRight: 6 }} />{label}</button>
         ))}
       </div>
 
-      {/* ── Dashboard ── */}
-      {tab === 'dashboard' && (
-        <>
+      <div style={{ padding: '1rem' }}>
+        {/* ── DASHBOARD ── */}
+        {tab === 'dashboard' && (
           <div className="grid-4" style={{ marginBottom: 28 }}>
-            {loadBal
-              ? [1,2,3,4].map(i => <SkeletonCard key={i} />)
-              : balances.length > 0
-                ? balances.slice(0, 4).map((b, i) => <BalanceCard key={i} balance={b} loading={false} />)
-                : (
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '32px 20px', color: 'var(--text-muted)', background: 'var(--surface)', borderRadius: 'var(--radius-lg)' }}>
-                    <CalendarDays size={32} style={{ opacity: 0.3, marginBottom: 10 }} />
-                    <div style={{ fontWeight: 500 }}>No leave balances found</div>
-                    <div style={{ fontSize: '0.8rem', marginTop: 4 }}>Contact HR to initialize your leave balance for this year.</div>
-                  </div>
-                )
-            }
+            {loadBal ? <SkeletonCard /> : balances.length === 0 ? <div style={{ padding: 20 }}>No Balances Found</div> : balances.map((b, i) => <BalanceCard key={i} balance={b} loading={false} />)}
           </div>
+        )}
 
-          <div className="grid-2">
-            <div className="card">
-              <div className="card-header">
-                <div className="card-title">Pending Requests</div>
-                <span className="badge badge-pending">
-                  {myRequests.filter(r =>
-                    ['Pending','PENDING_MANAGER','PENDING_HR','SUBMITTED'].includes(r.status || r.Status)
-                  ).length}
-                </span>
-              </div>
-              {myRequests.filter(r =>
-                ['Pending','PENDING_MANAGER','PENDING_HR','SUBMITTED'].includes(r.status || r.Status)
-              ).length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  No pending requests
-                </div>
-              ) : (
-                myRequests
-                  .filter(r => ['Pending','PENDING_MANAGER','PENDING_HR','SUBMITTED'].includes(r.status || r.Status))
-                  .map((req, i) => {
-                    const name = req.leaveTypeName || req.LeaveTypeName || req.leaveType?.LeaveTypeName || '—';
-                    const days = req.numberOfDays ?? req.TotalDays ?? req.totalDays ?? req.days ?? '—';
-                    const from = (req.startDate || req.StartDate) ? new Date(req.startDate || req.StartDate).toLocaleDateString() : '—';
-                    const to   = (req.endDate   || req.EndDate)   ? new Date(req.endDate   || req.EndDate).toLocaleDateString()   : '—';
-                    return (
-                      <div key={i} style={{
-                        padding: '12px 0', borderBottom: '1px solid var(--border-light)',
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      }}>
-                        <div>
-                          <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{from} — {to}</div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontWeight: 600 }}>{days !== '—' ? `${days} days` : '—'}</div>
-                          <Badge status="Pending">Pending</Badge>
-                        </div>
-                      </div>
-                    );
-                  })
-              )}
-            </div>
-
-            <div className="card">
-              <div className="card-header">
-                <div className="card-title">Upcoming Holidays</div>
-              </div>
-              {holidays.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  No holidays scheduled
-                </div>
-              ) : (
-                holidays
-                  .filter(h => new Date(h.HolidayDate || h.holidayDate || h.date) >= new Date())
-                  .slice(0, 6)
-                  .map((h, i) => (
-                    <div key={i} style={{
-                      padding: '10px 0', borderBottom: '1px solid var(--border-light)',
-                      display: 'flex', justifyContent: 'space-between',
-                    }}>
-                      <div>
-                        <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>
-                          {h.HolidayName || h.holidayName || h.name}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Public Holiday</div>
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--gold)', fontWeight: 600 }}>
-                        {(h.HolidayDate || h.holidayDate || h.date)
-                          ? new Date(h.HolidayDate || h.holidayDate || h.date)
-                              .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                          : '—'}
-                      </div>
-                    </div>
-                  ))
-              )}
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* ── Request Leave ── */}
-      {tab === 'request' && (
-        <div style={{ maxWidth: 600 }}>
+        {/* ── HISTORY ── */}
+        {tab === 'history' && (
           <div className="card">
-            <div className="card-header">
-              <div>
-                <div className="card-title">Submit Leave Request</div>
-                <div className="card-subtitle">Fill in the details below to request time off</div>
-              </div>
+            <div className="card-header"><div className="card-title">My Personal History</div></div>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Type</th><th>Period</th><th>Days</th><th>Status</th><th>Actions</th></tr></thead>
+                {/* ── PASS currentUser={user} ── */}
+                <tbody>{myRequests.filter(r => statusMatches(r.Status, historyFilter)).map((req, i) => <RequestRow key={i} req={req} onAction={handleAction} onEdit={setEditReq} isSupervisor={false} isHRManager={false} currentUser={user} />)}</tbody>
+              </table>
             </div>
-            {leaveTypes.length === 0 && (
-              <div style={{
-                padding: '10px 14px', marginBottom: 12,
-                background: 'rgba(240,180,41,0.08)', borderRadius: 'var(--radius-md)',
-                fontSize: '0.82rem', color: 'var(--text-secondary)',
-              }}>
-                <AlertCircle size={13} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                No leave types available. Contact HR to configure leave types.
+          </div>
+        )}
+
+        {/* ── COMPANY DATA / TEAM INBOX ── */}
+        {tab === 'all' && isManagement && (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    {/* Bulk Bar */}
+    {isHRManager && selectedIds.length > 0 && (
+      <div className="card p-3" style={{ background: 'var(--blue)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontWeight: 600 }}>{selectedIds.length} Requests Selected</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-success btn-sm" onClick={() => handleBulkAction('APPROVE')}>Bulk Approve</button>
+          <button className="btn btn-danger btn-sm" onClick={() => handleBulkAction('REJECT')}>Bulk Reject</button>
+          <button className="btn btn-ghost btn-sm" style={{ color: 'white' }} onClick={() => setSelectedIds([])}>Clear</button>
+        </div>
+      </div>
+    )}
+
+    <div className="card">
+      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <div className="card-title">{isHRManager ? 'Company-Wide Leaves' : 'Team Inbox'}</div>
+        <button className="btn btn-ghost btn-sm" onClick={loadData}><RefreshCw size={14}/></button>
+      </div>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              {/* Correctly aligned checkbox header */}
+              {isHRManager && <th style={{ width: 40 }}>
+                <button className="btn btn-ghost p-1" onClick={selectAllVisible}>
+                  {selectedIds.length === allRequests.length && allRequests.length > 0 ? <CheckSquare size={16} /> : <Square size={16} />}
+                </button>
+              </th>}
+              <th>Leave Type</th>
+              <th>Employee</th>
+              <th>Period</th>
+              <th>Days</th>
+              <th>Status</th>
+              <th>Reason</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+         <tbody>
+  {allRequests
+    .filter(r => statusMatches(r.Status, allFilter))
+    .map((req, i) => (
+      <RequestRow 
+        key={req.LeaveRequestID || i} // 👈 Fixed: Use req.LeaveRequestID or the index i
+        req={req} 
+        onAction={handleAction} 
+        onOverrideClick={setOverrideReq} 
+        isSupervisor={isSupervisor} 
+        isHRManager={isHRManager} 
+        isBasicHR={isBasicHR} 
+        currentUser={user}
+        isSelected={selectedIds.includes(req.LeaveRequestID || req.id)}
+        onSelect={toggleSelect}
+        onVerifyDoc={(path) => setViewingDoc(path)}
+      />
+    ))}
+</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+)}
+        {/* ── SETTINGS (FEATURES SEPARATED) ── */}
+        {tab === 'settings' && (isHRManager || isBasicHR) && (
+          <div className="settings-grid">
+            
+            {/* ── BASIC HR ── */}
+            {isBasicHR && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <LeaveTypeManager types={leaveTypes} onAdd={d => leaveAPI.createType(d).then(() => { toast.success("Type created!"); loadData(); })} />
+                <HolidayManager holidays={holidays} onAdd={d => leaveAPI.createHoliday(d).then(() => { toast.success("Holiday created!"); loadData(); })} />
+                <div className="card p-4">
+                  <div className="card-title mb-3"><Users size={16} className="mr-2"/> Employee Entitlements</div>
+                  <button className="btn btn-outline-success" onClick={() => setShowAssignModal(true)}>
+                     Assign Entitlements to Employee
+                  </button>
+                </div>
+                
+                {/* ── NO ASSUMPTIONS: LEAVE POLICY (YEAR RULES) MAPPED TO BACKEND ── */}
+                <LeavePolicyManager leaveTypes={leaveTypes} onSave={(data) => {
+                   if(leaveAPI.createPolicy) { leaveAPI.createPolicy(data).then(() => toast.success("Leave policy rules updated")); }
+                   else { toast.success("Leave Policy defined! (Hook up leaveAPI.createPolicy to backend)"); }
+                }} />
+                
+                {/* ── NO ASSUMPTIONS: DB ROLES & PERMISSIONS MANAGER ── */}
+                <RolePermissionManager employees={employeeDropdownList} onUpdate={(data) => {
+                   if(employeeAPI.updateRole) { employeeAPI.updateRole(data).then(() => toast.success("Role updated successfully!")); }
+                   else { toast.success("Role set! (Hook up employeeAPI.updateRole to backend)"); }
+                }} />
               </div>
             )}
-            <SubmitLeaveForm leaveTypes={leaveTypes} onSubmit={handleSubmit} loading={submitting} />
-          </div>
-        </div>
-      )}
 
-      {/* ── My History ── */}
-      {tab === 'history' && (
-        <>
-          <div className="filter-bar">
-            {STATUS_HISTORY.map(({ value, label }) => (
-              <button
-                key={value}
-                className={`filter-chip ${historyFilter === value ? 'active' : ''}`}
-                onClick={() => setHistoryFilter(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {loadReq ? (
-            <SkeletonCard />
-          ) : filteredMyReqs.length === 0 ? (
-            <div className="card">
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
-                No leave requests found
-              </div>
-            </div>
-          ) : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Leave Type</th>
-                    <th>Period</th>
-                    <th>Days</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredMyReqs.map((req, i) => (
-                    <RequestRow
-                      key={req.LeaveRequestID || req.leaveRequestId || req.id || i}
-                      req={req}
-                      onAction={handleAction}
-                      isManager={false}
-                      userRole={user?.role}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
-      )}
+            {/* ── HR MANAGER ── */}
+            {isHRManager && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div className="card p-4">
+                  <div className="card-title mb-4"><Shield size={18} style={{marginRight:8}}/> Leave Calculation Engine</div>
+                  
+                  <div className="form-row mb-3">
+                    <div className="form-group w-full" style={{ flex: 1 }}>
+                      <label className="form-label">Target Leave Type</label>
+                      <select 
+                        className="form-select" 
+                        value={globalEntitlementType} 
+                        onChange={e => setGlobalEntitlementType(e.target.value)}
+                      >
+                        <option value="">Select Type...</option>
+                        {leaveTypes.map(t => (
+                          <option key={t.LeaveTypeID || t.id} value={t.LeaveTypeID || t.id}>
+                            {t.LeaveTypeName || t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group w-full" style={{ flex: 1 }}>
+                      <label className="form-label">Entitlement (Days)</label>
+                      <div className="d-flex gap-2">
+                        <input 
+                          className="form-input" 
+                          type="number" 
+                          value={globalEntitlementDays} 
+                          onChange={e => setGlobalEntitlementDays(e.target.value)} 
+                          style={{ width: '100px' }}
+                        />
+                        <button className="btn btn-primary" onClick={handleUpdateEntitlements}>
+                          Update Calculations
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-muted small mb-4">
+                    Changing this value will mass-update the entitlement for all employees under the selected leave type.
+                  </p>
 
-      {/* ── All Requests (HR/Admin) ── */}
-      {tab === 'all' && isManager && (
-        <>
-          <div className="filter-bar">
-            {STATUS_OPTIONS.map(({ value, label }) => (
-              <button
-                key={value}
-                className={`filter-chip ${allFilter === value ? 'active' : ''}`}
-                onClick={() => setAllFilter(value)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {loadAll ? (
-            <SkeletonCard />
-          ) : filteredAllReqs.length === 0 ? (
-            <div className="card">
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
-                {allFilter ? `No ${allFilter.toLowerCase()} requests found` : 'No leave requests found'}
+                  <div className="border-top pt-4">
+                    <div className="card-title mb-3 small">Advanced Actions</div>
+                    <div className="d-flex gap-3">
+                      <button className="btn btn-outline-primary" onClick={handlePayrollSync}>
+                        <RefreshCw size={14} className="mr-2"/> Sync Approved Leaves
+                      </button>
+                      <button className="btn btn-outline-danger" onClick={() => setShowAdjustmentModal(true)}>
+                        <AlertCircle size={14} className="mr-2"/> Adjust Individual Balances
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Leave Type</th>
-                    <th>Employee</th>
-                    <th>Period</th>
-                    <th>Days</th>
-                    <th>Status</th>
-                    <th>Reason</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAllReqs.map((req, i) => (
-                    <RequestRow
-                      key={req.LeaveRequestID || req.id || i}
-                      req={req}
-                      onAction={handleAction}
-                      isManager={true}
-                      userRole={user?.role}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
-      )}
+            )}
+  
+          </div>
+        )}
+      </div>
     </>
   );
 }

@@ -46,7 +46,7 @@ async function authenticate(req, res, next) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Verify the employee still exists and is active
+    // ── FIX: Select PositionID so we can check it in real-time ──
     const employee = await prisma.employee.findUnique({
       where: { EmployeeID: decoded.sub },
       select: {
@@ -57,11 +57,20 @@ async function authenticate(req, res, next) {
         DepartmentID: true,
         CurrentStatus: true,
         IsActive: true,
+        PositionID: true, // ✅ Added this
       },
     });
 
     if (!employee || !employee.IsActive || employee.CurrentStatus === 'Terminated') {
       return next(new AppError('Account is inactive or has been terminated.', 401, 'ACCOUNT_INACTIVE'));
+    }
+
+    // ── FIX: Calculate the role dynamically based on PositionID ──
+    let effectiveRole = decoded.role; // Default to token role
+    
+    // If they are a Professor (2) or HR Manager (1), upgrade them to Manager authority
+    if (employee.PositionID === 1 || employee.PositionID === 2) {
+      effectiveRole = 'Manager';
     }
 
     req.user = {
@@ -70,7 +79,8 @@ async function authenticate(req, res, next) {
       name: employee.FullName,
       email: employee.Email,
       deptId: employee.DepartmentID,
-      role: decoded.role,
+      role: effectiveRole, // ✅ Now Mona is "Manager" regardless of what the old token says
+      positionId: employee.PositionID
     };
 
     return next();

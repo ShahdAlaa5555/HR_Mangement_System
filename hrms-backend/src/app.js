@@ -113,6 +113,11 @@ app.use(`${API_PREFIX}/employees`, employeeRoutes);
 app.use(`${API_PREFIX}/attendance`, attendanceRoutes);
 app.use(`${API_PREFIX}/leave`, leaveRoutes);
 app.use(`${API_PREFIX}/payroll`, payrollRoutes);
+// Inside your main express app file
+app.use('/api/v1/notifications', require('./modules/notification/notification.routes'));
+
+// This allows the HR Manager to view the files via a URL
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ─── API Documentation Index ──────────────────────────────────────────────────
 app.get(API_PREFIX, (req, res) => {
