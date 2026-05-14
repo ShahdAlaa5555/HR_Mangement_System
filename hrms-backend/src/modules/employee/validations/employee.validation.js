@@ -137,6 +137,38 @@ const createPositionSchema = Joi.object({
   PayGradeID: Joi.number().integer().positive().allow(null).optional(),
   IsActive: Joi.boolean().default(true),
 });
+// ADD THIS ABOVE module.exports
+
+// ─── Emergency Contacts ───────────────────────────────────────────────────────
+const createEmergencyContactSchema = Joi.object({
+  ContactName: Joi.string().max(150).required(),
+  Relationship: Joi.string().max(50).required(),
+  Phone: Joi.string().max(30).required(),
+  AltPhone: Joi.string().max(30).allow(null, '').optional(),
+  IsPrimary: Joi.boolean().default(false),
+});
+
+const updateEmergencyContactSchema = Joi.object({
+  ContactName: Joi.string().max(150),
+  Relationship: Joi.string().max(50),
+  Phone: Joi.string().max(30),
+  AltPhone: Joi.string().max(30).allow(null, ''),
+  IsPrimary: Joi.boolean(),
+}).min(1);
+
+// ─── Skills ───────────────────────────────────────────────────────────────────
+const createSkillSchema = Joi.object({
+  SkillName: Joi.string().max(100).required(),
+  ProficiencyLevel: Joi.string().valid('Beginner', 'Intermediate', 'Advanced', 'Expert').required(),
+  YearsExperience: Joi.number().integer().min(0).allow(null).optional(),
+});
+
+// Add this above module.exports
+const createNoteSchema = Joi.object({
+  NoteText: Joi.string().max(2000).required(),
+});
+
+
 
 module.exports = {
   createEmployeeSchema,
@@ -148,4 +180,8 @@ module.exports = {
   createDepartmentSchema,
   updateDepartmentSchema,
   createPositionSchema,
+  createEmergencyContactSchema,
+  updateEmergencyContactSchema,
+  createSkillSchema,
+  createNoteSchema
 };

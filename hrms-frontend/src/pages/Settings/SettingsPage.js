@@ -1,5 +1,5 @@
 // src/pages/Settings/SettingsPage.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { KeyRound, Bell, Monitor, Save, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -23,8 +23,31 @@ export default function SettingsPage() {
     systemMessages:   true,
   });
 
-  // Appearance
-  const [theme, setTheme] = useState('dark');
+  // ─── APPEARANCE / THEME STATE ───
+  // Initialize from localStorage or default to dark
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('app-theme') || 'dark';
+  });
+
+  // Automatically apply the theme to the HTML document when it changes
+  useEffect(() => {
+    const root = document.documentElement;
+    
+    // Save preference
+    localStorage.setItem('app-theme', theme);
+
+    if (theme === 'auto') {
+      // Check system preference
+      const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.setAttribute('data-theme', isSystemDark ? 'dark' : 'light');
+      // Alternative (if your CSS uses body classes):
+      // document.body.className = isSystemDark ? 'dark-theme' : 'light-theme';
+    } else {
+      // Apply strictly selected theme
+      root.setAttribute('data-theme', theme);
+      // document.body.className = `${theme}-theme`;
+    }
+  }, [theme]);
 
   const validatePw = () => {
     const e = {};
@@ -53,7 +76,7 @@ export default function SettingsPage() {
   const TABS = [
     { id: 'security',      label: 'Security',       icon: KeyRound },
     { id: 'notifications', label: 'Notifications',  icon: Bell     },
-    { id: 'appearance',    label: 'Appearance',      icon: Monitor  },
+    { id: 'appearance',    label: 'Appearance',     icon: Monitor  },
   ];
 
   return (
@@ -192,10 +215,10 @@ export default function SettingsPage() {
               </div>
 
               {[
-                { key: 'leaveUpdates',     label: 'Leave Request Updates',    desc: 'Notify when your leave status changes'         },
-                { key: 'payrollReady',     label: 'Payslip Available',        desc: 'Alert when a new payslip is ready to view'     },
-                { key: 'attendanceAlerts', label: 'Attendance Alerts',        desc: 'Remind you to check in/out'                   },
-                { key: 'systemMessages',   label: 'System Announcements',     desc: 'Important system-wide messages from HR'        },
+                { key: 'leaveUpdates',     label: 'Leave Request Updates',  desc: 'Notify when your leave status changes'         },
+                { key: 'payrollReady',     label: 'Payslip Available',      desc: 'Alert when a new payslip is ready to view'     },
+                { key: 'attendanceAlerts', label: 'Attendance Alerts',      desc: 'Remind you to check in/out'                   },
+                { key: 'systemMessages',   label: 'System Announcements',   desc: 'Important system-wide messages from HR'        },
               ].map(({ key, label, desc }) => (
                 <div key={key} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -258,7 +281,10 @@ export default function SettingsPage() {
                   ].map(({ id, label, preview }) => (
                     <div
                       key={id}
-                      onClick={() => { setTheme(id); toast.success(`${label} theme selected — restart required`); }}
+                      onClick={() => { 
+                        setTheme(id); 
+                        toast.success(`${label} theme applied!`); 
+                      }}
                       style={{
                         cursor: 'pointer', borderRadius: 'var(--radius-lg)', overflow: 'hidden',
                         border: `2px solid ${theme === id ? 'var(--gold)' : 'var(--border)'}`,

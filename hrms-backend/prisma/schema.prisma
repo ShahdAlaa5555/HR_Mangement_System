@@ -131,12 +131,68 @@ model Employee {
   Credential              UserCredential?
   DelegationsGiven        LeaveDelegation[]  @relation("ManagerDelegator")
   DelegationsReceived     LeaveDelegation[]  @relation("DelegateReceiver")
+  EmergencyContacts EmergencyContact[]
+  Skills            EmployeeSkill[]
+  Documents         EmployeeDocument[]
+  // ADD THESE inside model Employee:
+  NotesReceived     EmployeeNote[] @relation("NotesReceived")
+  NotesAuthored     EmployeeNote[] @relation("NotesAuthored")
+  ReimbursementClaims ReimbursementClaim[]
 
   @@index([EmployeeCode], map: "IX_Employee_Code")
   @@index([DepartmentID], map: "IX_Employee_Department")
   @@index([PositionID], map: "IX_Employee_Position")
   @@index([SupervisorID], map: "IX_Employee_Supervisor")
   @@index([WorkLocationID], map: "IX_Employee_WorkLocation")
+}
+// ADD THIS AT THE BOTTOM OF YOUR schema.prisma
+// ADD THIS AT THE BOTTOM OF schema.prisma
+model EmployeeNote {
+  NoteID      Int      @id @default(autoincrement())
+  EmployeeID  Int
+  AuthorID    Int
+  NoteText    String   @db.Text
+  CreatedAt   DateTime @default(now())
+
+  Employee    Employee @relation("NotesReceived", fields: [EmployeeID], references: [EmployeeID], onDelete: Cascade)
+  Author      Employee @relation("NotesAuthored", fields: [AuthorID], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model EmployeeDocument {
+  DocumentID      Int      @id @default(autoincrement())
+  EmployeeID      Int
+  DocumentTitle   String   @db.VarChar(150)
+  DocumentType    String   @db.VarChar(50) // e.g., 'National ID', 'Contract', 'Certificate'
+  FileURL         String   @db.VarChar(255)
+  UploadedBy      Int?     
+  UploadDate      DateTime @default(now())
+  ExpiryDate      DateTime?
+
+  Employee        Employee @relation(fields: [EmployeeID], references: [EmployeeID], onDelete: Cascade)
+}
+model EmergencyContact {
+  ContactID      Int      @id @default(autoincrement())
+  EmployeeID     Int
+  ContactName    String   @db.VarChar(150)
+  Relationship   String   @db.VarChar(50)
+  Phone          String   @db.VarChar(30)
+  AltPhone       String?  @db.VarChar(30)
+  IsPrimary      Boolean  @default(false)
+  CreatedAt      DateTime @default(now())
+  UpdatedAt      DateTime @updatedAt
+
+  Employee       Employee @relation(fields: [EmployeeID], references: [EmployeeID], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model EmployeeSkill {
+  SkillID          Int      @id @default(autoincrement())
+  EmployeeID       Int
+  SkillName        String   @db.VarChar(100)
+  ProficiencyLevel String   @db.VarChar(50) // e.g., Beginner, Intermediate, Expert
+  YearsExperience  Int?
+  CreatedAt        DateTime @default(now())
+
+  Employee         Employee @relation(fields: [EmployeeID], references: [EmployeeID], onDelete: Cascade)
 }
 
 model UserCredential {
@@ -594,7 +650,18 @@ model LeaveRoundingConfig {
 
   @@unique([EmployeeCategory, AppliesFrom], name: "UQ_RoundingConfig", map: "UQ_RoundingConfig")
 }
-
+model ReimbursementClaim {
+  ClaimID      Int      @id @default(autoincrement())
+  EmployeeID   Int
+  Category     String   // e.g., 'Transport', 'Medical', 'Education'
+  Amount       Decimal  @db.Decimal(15, 2)
+  Justification String?
+  Status       String   @default("Pending") // 'Pending', 'Approved', 'Rejected'
+  ReceiptURL   String?  // For receipt image storage
+  CreatedAt    DateTime @default(now())
+  
+  Employee     Employee @relation(fields: [EmployeeID], references: [EmployeeID])
+}
 model MaternityLeaveTracker {
   TrackerID             Int       @id @default(autoincrement())
   EmployeeID            Int

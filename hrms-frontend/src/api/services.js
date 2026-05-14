@@ -59,6 +59,68 @@ export const employeeAPI = {
   reviewChangeRequest:(rId, d) => api.patch(`/employees/change-requests/${rId}`, d),
   getNotifications:   (p)      => api.get('/employees/me/notifications', { params: p }),
   markNotificationsRead:(data) => api.patch('/employees/me/notifications/read', data),
+  reactivate:         (id)     => api.post(`/employees/${id}/reactivate`),
+  getContacts:    (id) => api.get(`/employees/${id}/emergency-contacts`),
+  addContact:     (id, data) => api.post(`/employees/${id}/emergency-contacts`, data),
+  deleteContact:  (id, contactId) => api.delete(`/employees/${id}/emergency-contacts/${contactId}`),
+uploadPhoto: (file) => {
+    const formData = new FormData();
+    formData.append('photo', file); // 'photo' MUST match the backend exactly
+    
+    return api.post('/employees/upload-photo', formData, {
+      // Setting this to undefined forces Axios to automatically attach 
+      // the correct multipart boundary string that Multer is looking for!
+      headers: {
+        'Content-Type': undefined 
+      }
+    });
+  },
+
+  // Skills
+  getSkills:      (id) => api.get(`/employees/${id}/skills`),
+  addSkill:       (id, data) => api.post(`/employees/${id}/skills`, data),
+  deleteSkill:    (id, skillId) => api.delete(`/employees/${id}/skills/${skillId}`),
+  // Add this inside employeeAPI
+  getAllPendingRequests: () => api.get('/employees/change-requests/pending'),
+// Completeness
+  getCompleteness: (id) => api.get(`/employees/${id}/completeness`),
+  sendReminder:    (id) => api.post(`/employees/${id}/remind-completeness`),
+  
+  // Documents
+  getDocuments:    (id) => api.get(`/employees/${id}/documents`),
+  deleteDocument:  (id, docId) => api.delete(`/employees/${id}/documents/${docId}`),
+  uploadDocument:  (id, data, file) => {
+    const formData = new FormData();
+    formData.append('document', file); // physical file
+    formData.append('DocumentTitle', data.DocumentTitle);
+    formData.append('DocumentType', data.DocumentType);
+    if (data.ExpiryDate) formData.append('ExpiryDate', data.ExpiryDate);
+    
+    return api.post(`/employees/${id}/documents`, formData, {
+      headers: { 'Content-Type': undefined } // Let Axios handle boundary
+    });
+  },
+  // Add these inside your export const employeeAPI = { ... }
+  
+  // Epic 3: Manager Self-Service
+  getMyTeam:           () => api.get('/employees/me/team'),
+  getTimeline:         (id) => api.get(`/employees/${id}/timeline`),
+  getNotes:            (id) => api.get(`/employees/${id}/notes`),
+  addNote:             (id, data) => api.post(`/employees/${id}/notes`, data),
+  
+  // Add this new one for Managers:
+  getTeamPendingRequests: () => api.get('/employees/me/team/change-requests'),
+  updatePhoto: (id, url) => api.patch(`/employees/${id}/photo`, { PhotoURL: url }),
+  // Add these inside your export const employeeAPI = { ... }
+  downloadVerification: (id) => api.get(`/employees/${id}/letters/verification`, { responseType: 'blob' }),
+  downloadContract:     (id) => api.get(`/employees/${id}/letters/contract`, { responseType: 'blob' }),
+
+  // Add this specific line for updating contacts:
+  updateContact: (id, contactId, data) => api.patch(`/employees/${id}/contacts/${contactId}`, data),
+
+  assignRole:            (id, role) => api.patch(`/employees/${id}/role`, { role }),
+  getFieldVisibility:    () => api.get('/employees/settings/field-visibility'),
+  updateFieldVisibility: (data) => api.put('/employees/settings/field-visibility', data),
 };
 
 // ─── ATTENDANCE (patched) ────────────────────────────────────────────────────
@@ -150,4 +212,11 @@ export const payrollAPI = {
   resolveException:   (id, d)  => api.patch(`/payroll/exceptions/${id}/resolve`, d),
   getMyPayslips:      ()       => api.get('/payroll/payslips/me'),
   getPayslip:         (id)     => api.get(`/payroll/payslips/${id}`),
+  getActiveDays:      (params) => api.get('/payroll/active-days', { params }),
+  // ─── NEW: Reimbursement Claims (EM-005) ───
+  listReimbursements: (params) => api.get('/payroll/reimbursements', { params }),
+  submitReimbursement: (data)   => api.post('/payroll/reimbursements', data),
+// THIS is the line your console is looking for:
+  actionReimbursement: (id, data) => api.patch(`/payroll/reimbursements/${id}/action`, data),
+
 };

@@ -6,7 +6,7 @@ const ctrl = require('../controllers/leave.controller');
 const { authenticate, authorize } = require('../../../middleware/auth');
 const { validate } = require('../../../middleware/validate');
 const v = require('../validations/leave.validation');
-const upload = require('../../../middleware/multer'); 
+const { uploadDocument } = require('../../../middleware/multer');
 
 // 1. GLOBAL AUTHENTICATION (Must be first!)
 // This ensures req.user is populated for ALL leave routes
@@ -39,9 +39,7 @@ router.post('/types', authorize('HR', 'Admin'), validate(v.createLeaveTypeSchema
 router.get('/my/balances', validate(v.balanceQuerySchema, 'query'), ctrl.getMyLeaveBalances);
 router.get('/my/requests', validate(v.leaveRequestQuerySchema, 'query'), ctrl.getMyLeaveRequests);
 
-// ── Submit Request (With Multer) ───────────────────────────────────────────
-// authenticate is already handled globally above
-router.post('/requests', upload.single('documentReference'), ctrl.submitLeaveRequest);
+router.post('/requests', uploadDocument.single('documentReference'), ctrl.submitLeaveRequest);
 
 // ── Management / HR Actions ────────────────────────────────────────────────
 router.post('/requests/bulk', authorize('Manager', 'HR', 'Admin'), ctrl.bulkProcessRequests);

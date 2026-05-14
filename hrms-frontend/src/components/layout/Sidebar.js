@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, Clock, CreditCard, CalendarDays,
   Settings, LogOut, ChevronLeft, ChevronRight, Building2,
   UserCircle, Timer, Inbox, BarChart2, CalendarRange,
-  ChevronDown, ChevronUp, Layers,
+  ChevronDown, ChevronUp, Layers, Briefcase
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -15,8 +15,14 @@ export default function Sidebar({ collapsed, onToggle }) {
   const location  = useLocation();
   const [openGroup, setOpenGroup] = useState('attendance');
 
-  const isManager   = ['Manager', 'HR', 'Admin'].includes(user?.role || user?.Role);
-  const isHRorAdmin = ['HR', 'Admin'].includes(user?.role || user?.Role);
+  // --- UPDATED ROLE CHECKING ---
+  const userRole = user?.role || user?.Role;
+  
+  // 1. Strict HR / Admin check
+  const isHRorAdmin = ['HR', 'Admin'].includes(userRole);
+  
+  // 2. Broad Leadership check (includes HR, Admins, and all University Managers)
+  const isManager = ['Manager', 'Supervisor', 'Professor', 'Head of Department', 'HR', 'Admin'].includes(userRole);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -64,10 +70,19 @@ export default function Sidebar({ collapsed, onToggle }) {
         <div>
           <div className="nav-section-label">Modules</div>
 
+          {/* ── HR & ADMIN VIEW ── */}
           {isHRorAdmin && (
-            <NavLink to="/employees" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Employees' : undefined}>
+            <NavLink to="/employees" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'Employee Directory' : undefined}>
+              <Briefcase size={18} className="nav-icon" />
+              {!collapsed && <span className="nav-label">Employee Directory</span>}
+            </NavLink>
+          )}
+
+          {/* ── PROFESSOR / SUPERVISOR VIEW (Non-HR Leaders) ── */}
+          {isManager && !isHRorAdmin && (
+            <NavLink to="/employees" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} title={collapsed ? 'My Team & Approvals' : undefined}>
               <Users size={18} className="nav-icon" />
-              {!collapsed && <span className="nav-label">Employees</span>}
+              {!collapsed && <span className="nav-label">My Team & Approvals</span>}
             </NavLink>
           )}
 

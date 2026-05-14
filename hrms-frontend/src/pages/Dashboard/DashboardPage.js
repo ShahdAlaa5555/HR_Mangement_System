@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   UserCheck, Timer, Calendar, DollarSign,
-  TrendingUp, TrendingDown,
+  TrendingUp, TrendingDown, Users, Bell
 } from 'lucide-react';
-import { attendanceAPI, leaveAPI, payrollAPI } from '../../api/services';
-import { SkeletonCard } from '../../components/common';
+import { attendanceAPI, leaveAPI, payrollAPI, employeeAPI } from '../../api/services';
+import { SkeletonCard, Badge } from '../../components/common';
 import { useAuth } from '../../context/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -35,7 +35,13 @@ export default function DashboardPage() {
   const [activity, setActivity] = useState([]);   // always an array
   const [loading,  setLoading]  = useState(true);
 
+  // ─── MANAGER STATE ───
+  const isManager = ['Manager', 'Supervisor', 'Professor', 'Head of Department', 'HR', 'Admin'].includes(user?.role || user?.Role);
+  const [managerInbox, setManagerInbox] = useState(null);
+  const [teamAttendance, setTeamAttendance] = useState([]);
+
   useEffect(() => {
+    // 1. Fetch personal dashboard data
     Promise.allSettled([
       attendanceAPI.getDashboardKPIs(),
       attendanceAPI.getTodayStatus(),
@@ -43,25 +49,44 @@ export default function DashboardPage() {
       payrollAPI.getDashboard().catch(() => null),
       attendanceAPI.getRecentActivity(),
     ]).then(([k, t, b, p, a]) => {
-      console.log('🏠 DASHBOARD KPIs:', k.value?.data);
-      console.log('🏠 DASHBOARD TODAY:', t.value?.data);
-      console.log('🏠 DASHBOARD BALANCES:', b.value?.data);
-      console.log('🏠 DASHBOARD ACTIVITY:', a.value?.data);
-
-      if (k.status === 'fulfilled') setKpis(k.value?.data);
-      if (t.status === 'fulfilled') setToday(t.value?.data);
+      
+      // Robust Data Extraction: Check for nested .data objects from backend wrappers
+      if (k.status === 'fulfilled') setKpis(k.value?.data?.data || k.value?.data);
+      if (t.status === 'fulfilled') setToday(t.value?.data?.data || t.value?.data);
+      
       if (b.status === 'fulfilled') {
-        const d = b.value?.data;
+        const d = b.value?.data?.data || b.value?.data;
         setBalances(Array.isArray(d) ? d : d?.balances || d?.leaveBalances || []);
       }
-      if (p.status === 'fulfilled' && p.value) setPayDash(p.value?.data);
+      
+      if (p.status === 'fulfilled' && p.value) setPayDash(p.value?.data?.data || p.value?.data);
+      
       if (a.status === 'fulfilled') {
-        const d = a.value?.data;
+        const d = a.value?.data?.data || a.value?.data;
         setActivity(Array.isArray(d) ? d : d?.activities || d?.records || []);
       }
+      
       setLoading(false);
     });
-  }, []);
+
+    // 2. Fetch manager-specific data if applicable
+    if (isManager) {
+      if (employeeAPI.getManagerDashboardInbox) {
+        employeeAPI.getManagerDashboardInbox()
+          .then(res => setManagerInbox(res.data?.data || res.data || null))
+          .catch(err => console.log('Manager Inbox fetch error:', err));
+      }
+
+      if (employeeAPI.getTeamAttendanceToday) {
+        employeeAPI.getTeamAttendanceToday()
+          .then(res => {
+            const d = res.data?.data || res.data;
+            setTeamAttendance(Array.isArray(d) ? d : []);
+          })
+          .catch(err => console.log('Team Attendance fetch error:', err));
+      }
+    }
+  }, [isManager]);
 
   const displayName = user
     ? (user.firstName ? user.firstName : (user.name?.split(' ')[0] || 'there'))
@@ -70,10 +95,11 @@ export default function DashboardPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
+  // Safely map leave chart data
   const leaveChartData = balances.slice(0, 6).map(b => ({
-    name: b.leaveTypeName || b.name || b.type || 'Leave',
-    used: b.usedDays      ?? b.used      ?? 0,
-    left: b.remainingDays ?? b.remaining ?? 0,
+    name: b.leaveTypeName || b.LeaveType?.LeaveTypeName || b.name || b.type || 'Leave',
+    used: b.usedDays      ?? b.UsedDays      ?? b.used      ?? 0,
+    left: b.remainingDays ?? b.RemainingDays ?? b.remaining ?? 0,
   }));
 
   const COLORS = ['var(--gold)','var(--blue)','var(--green)','var(--red)','var(--purple)','var(--cyan)'];
@@ -92,28 +118,31 @@ export default function DashboardPage() {
       <div className="grid-4" style={{ marginBottom: 28 }}>
         <KpiCard loading={loading} icon={UserCheck} color="var(--blue)"
           label="Today's Status"
-          value={today?.currentStatus || '—'} />
+          value={today?.currentStatus || today?.Status || '—'} />
+        
         <KpiCard loading={loading} icon={Timer} color="var(--green)"
           label="On-Time Rate"
           value={kpis?.onTimeRate != null ? `${Number(kpis.onTimeRate).toFixed(0)}%` : '—'}
           trendLabel="This month" />
+        
         <KpiCard loading={loading} icon={Calendar} color="var(--amber)"
           label="Leave Balance"
           value={balances.length > 0 ? `${balances[0]?.remainingDays ?? balances[0]?.RemainingDays ?? '—'} days` : '—'}
           trendLabel={balances[0]?.leaveTypeName || balances[0]?.LeaveType?.LeaveTypeName || ''} />
+        
         <KpiCard loading={loading} icon={DollarSign} color="var(--purple)"
           label="Days to Payroll"
           value={kpis?.daysToPayroll != null ? `${kpis.daysToPayroll}` : '—'}
           trendLabel="Until next pay" />
       </div>
 
-      {/* Charts Row */}
+      {/* Charts Row (Personal Data) */}
       <div className="grid-2" style={{ marginBottom: 28 }}>
         {/* Leave Balances Chart */}
         <div className="card">
           <div className="card-header">
             <div>
-              <div className="card-title">Leave Balances</div>
+              <div className="card-title">My Leave Balances</div>
               <div className="card-subtitle">Days remaining by type</div>
             </div>
           </div>
@@ -140,12 +169,12 @@ export default function DashboardPage() {
         <div className="card">
           <div className="card-header">
             <div>
-              <div className="card-title">Today's Attendance</div>
+              <div className="card-title">My Attendance Today</div>
               <div className="card-subtitle">Your check-in status</div>
             </div>
             {today && (
               <span className={`badge ${today.currentStatus === 'Clocked In' ? 'badge-approved' : today.currentStatus === 'Clocked Out' ? 'badge-info' : 'badge-pending'}`}>
-                {today.currentStatus || 'Not Clocked In'}
+                {today.currentStatus || today.Status || 'Not Clocked In'}
               </span>
             )}
           </div>
@@ -153,12 +182,12 @@ export default function DashboardPage() {
             <div className="skeleton" style={{ height: 120 }} />
           ) : today ? (
             [
-              { label: 'Status',        value: today.currentStatus },
-              { label: 'Check-In',      value: today.checkInTime  ? new Date(today.checkInTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})  : '—' },
-              { label: 'Check-Out',     value: today.checkOutTime ? new Date(today.checkOutTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : '—' },
-              { label: 'Hours Worked',  value: today.workedHours  && Number(today.workedHours) > 0 ? `${Number(today.workedHours).toFixed(1)}h` : '—' },
-              { label: 'Shift',         value: today.todayShift?.shiftName || '—' },
-              { label: 'Shift Hours',   value: today.todayShift ? `${today.todayShift.startTime} – ${today.todayShift.endTime}` : '—' },
+              { label: 'Status',        value: today.currentStatus || today.Status },
+              { label: 'Check-In',      value: today.checkInTime || today.CheckInTime  ? new Date(today.checkInTime || today.CheckInTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})  : '—' },
+              { label: 'Check-Out',     value: today.checkOutTime || today.CheckOutTime ? new Date(today.checkOutTime || today.CheckOutTime).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : '—' },
+              { label: 'Hours Worked',  value: (today.workedHours || today.WorkedHours) && Number(today.workedHours || today.WorkedHours) > 0 ? `${Number(today.workedHours || today.WorkedHours).toFixed(1)}h` : '—' },
+              { label: 'Shift',         value: today.todayShift?.shiftName || today.Shift?.ShiftName || '—' },
+              { label: 'Shift Hours',   value: today.todayShift || today.Shift ? `${today.todayShift?.startTime || today.Shift?.StartTime} – ${today.todayShift?.endTime || today.Shift?.EndTime}` : '—' },
             ].map(({ label, value }) => (
               <div className="info-row" key={label}>
                 <span className="info-row-label">{label}</span>
@@ -176,21 +205,18 @@ export default function DashboardPage() {
       {/* Recent Activity */}
       <div className="card">
         <div className="card-header">
-          <div className="card-title">Recent Activity</div>
+          <div className="card-title">My Recent Activity</div>
         </div>
         {loading ? (
           <div className="skeleton" style={{ height: 120 }} />
         ) : activity.length > 0 ? (
           <div className="timeline" style={{ maxHeight: 300, overflowY: 'auto' }}>
             {activity.slice(0, 8).map((item, i) => {
-              // Build a human-friendly title from whatever shape the item has
               const getTitle = (item) => {
-                // Explicit description fields — use as-is
                 if (item.description) return item.description;
                 if (item.action)      return item.action;
                 if (item.message)     return item.message;
 
-                // Attendance record shape from the API
                 if (item.AttendanceDate || item.attendanceDate || item.CheckInTime) {
                   const status   = item.Status        || item.status        || 'Present';
                   const checkIn  = item.CheckInTime   || item.checkInTime;
@@ -212,14 +238,12 @@ export default function DashboardPage() {
                   return title;
                 }
 
-                // Leave request shape
                 if (item.LeaveTypeName || item.leaveTypeName || item.StartDate) {
                   const type   = item.LeaveTypeName || item.leaveTypeName || 'Leave';
                   const status = item.Status        || item.status        || '';
                   return `${type} request ${status}`.trim();
                 }
 
-                // Generic fallback — pick any readable string field instead of JSON
                 const readable = Object.values(item).find(v => typeof v === 'string' && v.length > 2 && v.length < 120);
                 return readable || 'Activity recorded';
               };

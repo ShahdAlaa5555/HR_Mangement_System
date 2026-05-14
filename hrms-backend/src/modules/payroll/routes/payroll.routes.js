@@ -44,5 +44,19 @@ router.patch('/exceptions/:id/resolve', authorize('Payroll', 'HR', 'Admin'), val
 // Payslips (Employee Portal + Finalized Payslips sidebar)
 router.get('/payslips/me', ctrl.getMyPayslips);
 router.get('/payslips/:id', ctrl.getPayslip);
+// Add this inside payroll.routes.js, likely near your other config/helper routes
+router.get(
+  '/active-days', 
+  authorize('Payroll', 'HR', 'Admin'), 
+  ctrl.getActiveDays
+);
+// List all claims (Admin/HR) or personal claims (Employee)
+router.get('/reimbursements', ctrl.listReimbursements);
 
+// Submit a new claim (Accessible by all logged-in users)
+router.post('/reimbursements', ctrl.submitReimbursement);
+
+// Approve or Reject a claim (HR, Admin, and Payroll only)
+// Change the action line to this:
+router.patch('/reimbursements/:id/action', authorize('Payroll', 'HR', 'Admin'), ctrl.actionReimbursement);
 module.exports = router;

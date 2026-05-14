@@ -1,5 +1,5 @@
 // src/App.js
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -64,6 +64,21 @@ function AppRoutes() {
 }
 
 export default function App() {
+  
+  // ─── GLOBAL THEME INITIALIZATION ───
+  // This runs once when the app boots up to ensure the saved theme is applied everywhere instantly!
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('app-theme') || 'dark';
+    const root = document.documentElement;
+
+    if (savedTheme === 'auto') {
+      const isSystemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.setAttribute('data-theme', isSystemDark ? 'dark' : 'light');
+    } else {
+      root.setAttribute('data-theme', savedTheme);
+    }
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>

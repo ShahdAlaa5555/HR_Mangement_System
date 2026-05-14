@@ -24,11 +24,54 @@ async function getPayslip(req, res) { return sendSuccess(res, await service.getP
 async function listExceptions(req, res) { const r = await service.listExceptions(req.query); return sendSuccess(res, r.exceptions, 200, r.meta); }
 async function resolveException(req, res) { return sendSuccess(res, await service.resolveException(parseInt(req.params.id, 10), req.user.id, req.body)); }
 async function generateBankFile(req, res) { return sendSuccess(res, await service.generateBankFile(parseInt(req.params.runId, 10), req.user.id, req.body), 201); }
+// Add this to payroll.controller.js
+async function getActiveDays(req, res) {
+  const { employeeId, periodStart, periodEnd } = req.query;
 
+  if (!employeeId || !periodStart || !periodEnd) {
+    return res.status(400).json({ 
+      success: false, 
+      error: { message: "employeeId, periodStart, and periodEnd are required query parameters" } 
+    });
+  }
+
+  const data = await service.getEmployeeActiveDays(
+    parseInt(employeeId, 10), 
+    periodStart, 
+    periodEnd
+  );
+
+  return sendSuccess(res, data);
+}
+async function listReimbursements(req, res) {
+  const query = { ...req.query };
+  // Stakeholder Rule: Employees see only theirs, Admins see all
+  if (!['Admin', 'HR', 'Payroll'].includes(req.user.role)) {
+    query.employeeId = req.user.id;
+  }
+  const result = await service.listReimbursements(query);
+  return sendSuccess(res, result);
+}
+
+async function submitReimbursement(req, res) {
+  const result = await service.submitReimbursement(req.user.id, req.body);
+  return sendSuccess(res, result, 201);
+}
+
+async function actionReimbursement(req, res) {
+  const result = await service.resolveReimbursement(
+    parseInt(req.params.id, 10), 
+    req.user.id, 
+    req.body // Contains { status: 'Approved' }
+  );
+  return sendSuccess(res, result);
+}
+// Don't forget to export it at the bottom:
+// getActiveDays
 module.exports = {
-  getDashboard, listPayGrades, createPayGrade, listPayTypes, createPayType,
+  getDashboard, listPayGrades, listReimbursements, submitReimbursement, actionReimbursement,createPayGrade, listPayTypes, createPayType,
   listOvertimeRules, createOvertimeRule, listAllowances, listShiftDifferentials,
-  listPolicies, createPolicy, listRuns, createRun, getRun, processRun,
+  listPolicies, createPolicy, listRuns, createRun, getRun, processRun,getActiveDays,
   approveRun, finalizeRun, generatePayslips, getMyPayslips, getPayslip,
   listExceptions, resolveException, generateBankFile,
 };

@@ -52,6 +52,43 @@ async function listPayrollPolicies() {
 async function createPayrollPolicy(data, createdById) {
   return prisma.payrollPolicy.create({ data: { ...data, ApprovedBy: createdById, ApprovedAt: new Date() }, include: { OvertimeRule: true } });
 }
+// Add this to payroll.service.js
+async function getEmployeeActiveDays(employeeId, periodStart, periodEnd) {
+  const employee = await prisma.employee.findUnique({ 
+    where: { EmployeeID: employeeId },
+    select: { HireDate: true, TerminationDate: true }
+  });
+
+  if (!employee) {
+    throw new AppError(`Employee ${employeeId} not found`, 404);
+  }
+
+  const start = new Date(periodStart);
+  const end = new Date(periodEnd);
+  const hired = employee.HireDate ? new Date(employee.HireDate) : start;
+  const terminated = employee.TerminationDate ? new Date(employee.TerminationDate) : null;
+
+  let actualStart = hired > start ? hired : start;
+  let actualEnd = (terminated && terminated < end) ? terminated : end;
+
+  // If hired after the period, or terminated before it
+  if (actualStart > end || actualEnd < start) {
+    return { activeDays: 0, isActive: false };
+  }
+
+  const diffTime = Math.abs(actualEnd - actualStart);
+  const activeDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+  return { 
+    activeDays, 
+    isActive: true, 
+    hireDate: employee.HireDate, 
+    terminationDate: employee.TerminationDate 
+  };
+}
+
+// Don't forget to export it at the bottom:
+// getEmployeeActiveDays
 
 // Payroll Runs
 async function listPayrollRuns(query) {
@@ -168,7 +205,7 @@ async function processPayrollRun(runId, opts, processedById) {
       }
 
       const allowancesTotal = allowances.reduce((s, ea) => s + (ea.OverrideAmount !== null ? Number(ea.OverrideAmount) : Number(ea.Allowance.Amount)), 0);
-      const grossEarnings = baseSalary + allowancesTotal + overtimePay - absenceDeduction;
+  
       const siWage = baseSalary;
       const employeeSI = siWage * siConfig.employeeRate;
       const employerSI = siWage * siConfig.employerRate;
@@ -177,7 +214,31 @@ async function processPayrollRun(runId, opts, processedById) {
       const netPay = grossEarnings - employeeSI - monthlyTax;
 
       if (netPay < Number(run.Policy.MinimumWageEGP)) await createOrUpdateException(runId, emp.EmployeeID, 'BelowMinimumWage', `Net pay ${netPay.toFixed(2)} < minimum wage.`);
+      // Find this section in processPayrollRun and add:
+const approvedClaims = await prisma.reimbursementClaim.findMany({
+  where: { 
+    EmployeeID: emp.EmployeeID, 
+    Status: 'Approved',
+    // Logic to ensure they haven't been paid in a previous run
+    PaidInRunID: null 
+  }
+});
 
+const claimsTotal = approvedClaims.reduce((s, c) => s + Number(c.Amount), 0);
+
+// Update Gross Earnings calculation:
+const grossEarnings = baseSalary + allowancesTotal + overtimePay + claimsTotal - absenceDeduction;
+
+// Add Line items for the payslip transparency:
+approvedClaims.forEach(c => {
+  lines.push({
+    PayTypeID: payTypes.allowance, // Or a specific CLAIM type
+    Description: `Reimbursement: ${c.Category}`,
+    Amount: Number(c.Amount),
+    Quantity: 1,
+    SourceModule: 'Expense'
+  });
+});
       const existingEntry = await prisma.payrollEntry.findUnique({ where: { UQ_PayrollEntry: { PayrollRunID: runId, EmployeeID: emp.EmployeeID } } });
       let entry;
       const entryData = { AttendanceSummaryID: attSummary.SummaryID, BaseSalary: baseSalary, TotalEarnings: grossEarnings, TotalDeductions: absenceDeduction + employeeSI + monthlyTax, TaxAmount: monthlyTax, UnpaidLeaveDeduction: absenceDeduction, OvertimePay: overtimePay, SocialInsuranceWage: siWage, EmployeeSocialInsurance: employeeSI, EmployerSocialInsurance: employerSI, NetPay: netPay, Status: PAYROLL_ENTRY_STATUS.DRAFT };
@@ -309,10 +370,44 @@ async function getPayrollDashboard() {
   };
 }
 
+
+async function listReimbursements(query) {
+  const where = {};
+  if (query.employeeId) where.EmployeeID = parseInt(query.employeeId, 10);
+  if (query.status) where.Status = query.status;
+  return prisma.reimbursementClaim.findMany({
+    where,
+    include: { Employee: { select: { FullName: true } } },
+    orderBy: { CreatedAt: 'desc' }
+  });
+}
+
+async function submitReimbursement(employeeId, data) {
+  const amount = parseFloat(data.amount);
+  if (isNaN(amount)) throw new AppError("Invalid amount provided", 400);
+  return prisma.reimbursementClaim.create({
+    data: {
+      EmployeeID: parseInt(employeeId, 10),
+      Category: data.type || "Other",
+      Amount: amount,
+      Justification: data.reason || "",
+      Status: "Pending"
+    }
+  });
+}
+async function resolveReimbursement(claimId, resolverId, data) {
+  return prisma.reimbursementClaim.update({
+    where: { ClaimID: claimId },
+    data: { Status: data.status } // Expects 'Approved' or 'Rejected'
+  });
+}
+
+// Ensure resolveReimbursement is in module.exports!
 module.exports = {
-  listPayGrades, createPayGrade, listPayTypes, createPayType, listOvertimeRules, createOvertimeRule,
+  listPayGrades, submitReimbursement, listReimbursements, resolveReimbursement,
+  createPayGrade, listPayTypes, createPayType, listOvertimeRules, createOvertimeRule,
   listAllowances, listShiftDifferentials, listPayrollPolicies, createPayrollPolicy,
   listPayrollRuns, getPayrollRunById, createPayrollRun, processPayrollRun,
   approvePayrollRun, finalizePayrollRun, generatePayslips, getMyPayslips, getPayslipById,
-  listExceptions, resolveException, generateBankFile, getPayrollDashboard, calculateAnnualTax,
+  listExceptions, resolveException, generateBankFile, getPayrollDashboard, calculateAnnualTax, getEmployeeActiveDays,
 };

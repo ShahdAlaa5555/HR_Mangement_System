@@ -119,6 +119,9 @@ app.use('/api/v1/notifications', require('./modules/notification/notification.ro
 // This allows the HR Manager to view the files via a URL
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// This exposes the uploads folder so the React app can download the images
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+
 // ─── API Documentation Index ──────────────────────────────────────────────────
 app.get(API_PREFIX, (req, res) => {
   res.json({
