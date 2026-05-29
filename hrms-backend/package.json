@@ -9,7 +9,8 @@
     "db:push": "npx prisma db push",
     "db:generate": "npx prisma generate",
     "db:pull": "npx prisma db pull",
-    "lint": "eslint src/**/*.js"
+    "lint": "eslint src/**/*.js",
+     "test": "jest --runInBand --detectOpenHandles --coverage"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
@@ -30,9 +31,12 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
+    "jest": "^30.4.2",
     "nodemon": "^3.0.3",
-    "prisma": "^5.10.0"
+    "prisma": "^5.10.0" ,
+     "supertest": "^7.2.2"
   },
+    
   "engines": {
     "node": ">=18.0.0"
   }

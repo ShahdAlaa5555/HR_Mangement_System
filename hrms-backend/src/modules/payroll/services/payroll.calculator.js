@@ -156,8 +156,6 @@ const hoursPerDay = Number(policy.WorkingHoursPerDay) || 8;
 const dailyRate = contractBaseSalary / workingDaysInMonth; 
 const hourlyRate = dailyRate / hoursPerDay;
 
-// Fulfills PR-004: Minimum Wage check now uses the specific policy value
-const minimumWage = Number(policy.MinimumWageEGP) || 6000;
   const absentDays = attendanceSummary ? Number(attendanceSummary.AbsentDays || 0) : 0;
   // Apply Cap on Deductions (PR-004)
   const cappedAbsenceDays = Math.min(absentDays, policy.MaxMonthlyDeductionDays || 30);
@@ -187,7 +185,7 @@ const minimumWage = Number(policy.MinimumWageEGP) || 6000;
   let netPay = parseFloat((grossIncome - employeeSI - incomeTax).toFixed(2));
   
   // PR-004: Minimum Wage is pulled directly from policy.MinimumWageEGP
-  const minimumWage = Number(policy.MinimumWageEGP);
+  const minimumWage = Number(policy.MinimumWageEGP) || 6000;
 
   // BUILD DETAILED LINES FOR FRONTEND TRANSPARENCY
   const lines = [

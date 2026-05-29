@@ -1,0 +1,4433 @@
+{
+  "system": "HR Management System \u2014 Enterprise UML Class Diagram (Enhanced)",
+  "version": "2.0",
+  "modules": [
+    "EmployeeManagement",
+    "TimeManagement",
+    "PayrollManagement",
+    "LeaveManagement",
+    "WorkflowEngine",
+    "SecurityAndRBAC",
+    "NotificationSystem",
+    "AnalyticsAndReporting"
+  ],
+  "packages": [
+    {
+      "name": "EmployeeManagement",
+      "layer": "Core",
+      "description": "Central hub. Manages employee lifecycle, profiles, documents, contracts."
+    },
+    {
+      "name": "TimeManagement",
+      "layer": "Functional",
+      "description": "Shift scheduling, attendance, overtime, biometric sync, payroll feed."
+    },
+    {
+      "name": "PayrollManagement",
+      "layer": "Functional",
+      "description": "Payroll cycles, salary calc, deductions, tax, payslips, final settlements."
+    },
+    {
+      "name": "LeaveManagement",
+      "layer": "Functional",
+      "description": "Leave types, policies, requests, approvals, accruals, carry-forward."
+    },
+    {
+      "name": "WorkflowEngine",
+      "layer": "Infrastructure",
+      "description": "Multi-level approvals, escalation, workflow states, approval chains."
+    },
+    {
+      "name": "SecurityAndRBAC",
+      "layer": "Infrastructure",
+      "description": "RBAC, authentication, sessions, access policies, permissions."
+    },
+    {
+      "name": "NotificationSystem",
+      "layer": "Infrastructure",
+      "description": "Event-driven notification dispatch with templates and recipients."
+    },
+    {
+      "name": "AnalyticsAndReporting",
+      "layer": "CrossCutting",
+      "description": "KPIs, dashboards, workforce metrics, predictive alerts, report export."
+    }
+  ],
+  "interfaces": [
+    {
+      "name": "INotificationSender",
+      "package": "NotificationSystem",
+      "methods": [
+        {
+          "name": "send",
+          "returnType": "void",
+          "parameters": [
+            "Notification n"
+          ]
+        },
+        {
+          "name": "sendBulk",
+          "returnType": "void",
+          "parameters": [
+            "List<Notification> list"
+          ]
+        },
+        {
+          "name": "retry",
+          "returnType": "void",
+          "parameters": [
+            "UUID notifId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "IPayrollProcessor",
+      "package": "PayrollManagement",
+      "methods": [
+        {
+          "name": "processPayroll",
+          "returnType": "void",
+          "parameters": [
+            "UUID cycleId"
+          ]
+        },
+        {
+          "name": "calculateDeductions",
+          "returnType": "List<Deduction>",
+          "parameters": [
+            "UUID payslipId"
+          ]
+        },
+        {
+          "name": "generatePayslips",
+          "returnType": "List<Payslip>",
+          "parameters": [
+            "UUID cycleId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "IAttendanceCalculator",
+      "package": "TimeManagement",
+      "methods": [
+        {
+          "name": "calculateWorkedHours",
+          "returnType": "Decimal",
+          "parameters": [
+            "AttendanceRecord r"
+          ]
+        },
+        {
+          "name": "detectLateAttendance",
+          "returnType": "boolean",
+          "parameters": [
+            "AttendanceRecord r"
+          ]
+        },
+        {
+          "name": "syncBiometricLogs",
+          "returnType": "void",
+          "parameters": [
+            "List<BiometricLog> logs"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "IWorkflowEngine",
+      "package": "WorkflowEngine",
+      "methods": [
+        {
+          "name": "startWorkflow",
+          "returnType": "UUID",
+          "parameters": [
+            "String entityType",
+            "UUID entityId"
+          ]
+        },
+        {
+          "name": "advance",
+          "returnType": "void",
+          "parameters": [
+            "UUID workflowId"
+          ]
+        },
+        {
+          "name": "escalate",
+          "returnType": "void",
+          "parameters": [
+            "UUID workflowId",
+            "UUID escalateTo"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "IAuditTracker",
+      "package": "EmployeeManagement",
+      "methods": [
+        {
+          "name": "record",
+          "returnType": "void",
+          "parameters": [
+            "AuditEvent event"
+          ]
+        },
+        {
+          "name": "query",
+          "returnType": "List<AuditLog>",
+          "parameters": [
+            "AuditFilter filter"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "IAuthenticationProvider",
+      "package": "SecurityAndRBAC",
+      "methods": [
+        {
+          "name": "authenticate",
+          "returnType": "Session",
+          "parameters": [
+            "String username",
+            "String password"
+          ]
+        },
+        {
+          "name": "validateToken",
+          "returnType": "boolean",
+          "parameters": [
+            "String token"
+          ]
+        },
+        {
+          "name": "logout",
+          "returnType": "void",
+          "parameters": [
+            "UUID sessionId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "IReportGenerator",
+      "package": "AnalyticsAndReporting",
+      "methods": [
+        {
+          "name": "generate",
+          "returnType": "Report",
+          "parameters": [
+            "ReportTemplate template",
+            "Map<String,Object> params"
+          ]
+        },
+        {
+          "name": "export",
+          "returnType": "File",
+          "parameters": [
+            "UUID reportId",
+            "String format"
+          ]
+        }
+      ]
+    }
+  ],
+  "classes": [
+    {
+      "name": "Employee",
+      "package": "EmployeeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "firstName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "lastName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "phone",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "dateOfBirth",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "nationalId",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "gender",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "nationality",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "hireDate",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "employmentStatus",
+          "type": "EmploymentStatus",
+          "visibility": "private"
+        },
+        {
+          "name": "contractType",
+          "type": "ContractType",
+          "visibility": "private"
+        },
+        {
+          "name": "baseSalary",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "probationEndDate",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "managerId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "departmentId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "badgeNumber",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "updateProfile",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "ProfileData data"
+          ]
+        },
+        {
+          "name": "assignManager",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID managerId"
+          ]
+        },
+        {
+          "name": "deactivate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "String reason"
+          ]
+        },
+        {
+          "name": "reactivate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "getFullName",
+          "returnType": "String",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "isOnProbation",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "requestVerificationLetter",
+          "returnType": "Document",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "HRManager",
+      "package": "EmployeeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "managedRegion",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "canOverrideApprovals",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "overrideLeaveDecision",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID leaveId"
+          ]
+        },
+        {
+          "name": "bulkProcessRequests",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "List<UUID> ids"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "DepartmentManager",
+      "package": "EmployeeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "departmentId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "approvalLimit",
+          "type": "Decimal",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "approveRequest",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID requestId"
+          ]
+        },
+        {
+          "name": "viewTeamReport",
+          "returnType": "TeamReport",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "PayrollManager",
+      "package": "EmployeeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "canProcessMultiCurrency",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "approveCycle",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID cycleId"
+          ]
+        },
+        {
+          "name": "resolveIrregularity",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SystemAdmin",
+      "package": "EmployeeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "accessLevel",
+          "type": "int",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "configureSystem",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "Config cfg"
+          ]
+        },
+        {
+          "name": "manageRoles",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "Auditor",
+      "package": "EmployeeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "auditScope",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "generateAuditReport",
+          "returnType": "AuditReport",
+          "visibility": "public",
+          "parameters": [
+            "DateRange range"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ExecutiveManager",
+      "package": "EmployeeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "executiveLevel",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "dashboardAccess",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "viewStrategicDashboard",
+          "returnType": "Dashboard",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "EmployeeProfile",
+      "package": "EmployeeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "profileId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "biography",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "profilePictureUrl",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "completenessScore",
+          "type": "int",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "calculateCompleteness",
+          "returnType": "int",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "getMissingFields",
+          "returnType": "List<String>",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "EmployeeDocument",
+      "package": "EmployeeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "documentId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "documentType",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "version",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "expiryDate",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "isVerified",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "upload",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "File f"
+          ]
+        },
+        {
+          "name": "isExpired",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "EmploymentContract",
+      "package": "EmployeeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "contractId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "contractType",
+          "type": "ContractType",
+          "visibility": "private"
+        },
+        {
+          "name": "startDate",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "endDate",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "salary",
+          "type": "Decimal",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "renew",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "Date newEnd"
+          ]
+        },
+        {
+          "name": "terminate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "String reason"
+          ]
+        },
+        {
+          "name": "isExpiring",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": [
+            "int days"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "UserAccount",
+      "package": "EmployeeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "accountId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "username",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "passwordHash",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "isActive",
+          "type": "boolean",
+          "visibility": "private"
+        },
+        {
+          "name": "role",
+          "type": "UserRoleType",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "activate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "deactivate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "resetPassword",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "String hash"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "EmergencyContact",
+      "package": "EmployeeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "contactId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "fullName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "relationship",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "phone",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "update",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "ContactData d"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "EmployeeService",
+      "package": "EmployeeManagement",
+      "type": "service",
+      "stereotype": "service",
+      "attributes": [
+        {
+          "name": "auditTracker",
+          "type": "IAuditTracker",
+          "visibility": "private"
+        },
+        {
+          "name": "notificationService",
+          "type": "NotificationService",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "createEmployee",
+          "returnType": "Employee",
+          "visibility": "public",
+          "parameters": [
+            "EmployeeData data"
+          ]
+        },
+        {
+          "name": "updateEmployee",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID id",
+            "ProfileData data"
+          ]
+        },
+        {
+          "name": "deactivateEmployee",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID id",
+            "String reason"
+          ]
+        },
+        {
+          "name": "bulkImport",
+          "returnType": "ImportResult",
+          "visibility": "public",
+          "parameters": [
+            "List<EmployeeData> list"
+          ]
+        },
+        {
+          "name": "generateVerificationLetter",
+          "returnType": "Document",
+          "visibility": "public",
+          "parameters": [
+            "UUID id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AuditLog",
+      "package": "EmployeeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "auditId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "accountId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "entityType",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "entityId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "action",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "before",
+          "type": "JSON",
+          "visibility": "private"
+        },
+        {
+          "name": "after",
+          "type": "JSON",
+          "visibility": "private"
+        },
+        {
+          "name": "timestamp",
+          "type": "DateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "record",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "query",
+          "returnType": "List<AuditLog>",
+          "visibility": "public",
+          "parameters": [
+            "AuditFilter f"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Shift",
+      "package": "TimeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "shiftId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "startTime",
+          "type": "Time",
+          "visibility": "private"
+        },
+        {
+          "name": "endTime",
+          "type": "Time",
+          "visibility": "private"
+        },
+        {
+          "name": "breakMinutes",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "isFlexible",
+          "type": "boolean",
+          "visibility": "private"
+        },
+        {
+          "name": "graceMinutes",
+          "type": "int",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "calculateNetHours",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "isLate",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": [
+            "Time checkIn"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ShiftAssignment",
+      "package": "TimeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "assignmentId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "shiftId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "effectiveFrom",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "effectiveTo",
+          "type": "Date",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "assign",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID empId",
+            "UUID shiftId"
+          ]
+        },
+        {
+          "name": "expire",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "isActiveToday",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "AttendanceRecord",
+      "package": "TimeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "recordId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "workDate",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "checkIn",
+          "type": "DateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "checkOut",
+          "type": "DateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "workedHours",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "AttendanceStatus",
+          "visibility": "private"
+        },
+        {
+          "name": "latenessMinutes",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "isEdited",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "calculateWorkedHours",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "validateAttendance",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "flagMissedPunch",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "markAsOnLeave",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID leaveId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "BiometricLog",
+      "package": "TimeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "logId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "deviceId",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "timestamp",
+          "type": "DateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "gpsLat",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "isSynced",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "sync",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "toAttendance",
+          "returnType": "AttendanceRecord",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "OvertimeRequest",
+      "package": "TimeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "overtimeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "date",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "hours",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "category",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "ApprovalStatus",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "submit",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "approve",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID approverId"
+          ]
+        },
+        {
+          "name": "reject",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "String reason"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "TimeSheet",
+      "package": "TimeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "timesheetId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "periodStart",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "periodEnd",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "totalHours",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "overtimeHours",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "ApprovalStatus",
+          "visibility": "private"
+        },
+        {
+          "name": "hasMissingPunches",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "summarize",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "syncToPayroll",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID cycleId"
+          ]
+        },
+        {
+          "name": "blockPayrollIfIncomplete",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "LatenessRule",
+      "package": "TimeManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "ruleId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "graceMinutes",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "deductionThreshold",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "linkToMisconduct",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "evaluate",
+          "returnType": "LatenessAction",
+          "visibility": "public",
+          "parameters": [
+            "AttendanceRecord r"
+          ]
+        },
+        {
+          "name": "escalate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID empId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AttendanceService",
+      "package": "TimeManagement",
+      "type": "service",
+      "stereotype": "service",
+      "attributes": [
+        {
+          "name": "calculator",
+          "type": "IAttendanceCalculator",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "calculateWorkedHours",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": [
+            "UUID recordId"
+          ]
+        },
+        {
+          "name": "detectLateAttendance",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": [
+            "UUID recordId"
+          ]
+        },
+        {
+          "name": "syncBiometricLogs",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "List<BiometricLog> logs"
+          ]
+        },
+        {
+          "name": "generateExceptions",
+          "returnType": "List<AttendanceException>",
+          "visibility": "public",
+          "parameters": [
+            "DateRange range"
+          ]
+        },
+        {
+          "name": "exportToPayroll",
+          "returnType": "PayrollInput",
+          "visibility": "public",
+          "parameters": [
+            "UUID cycleId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "PayrollCycle",
+      "package": "PayrollManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "cycleId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "periodLabel",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "startDate",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "endDate",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "PayrollStatus",
+          "visibility": "private"
+        },
+        {
+          "name": "currency",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "isLocked",
+          "type": "boolean",
+          "visibility": "private"
+        },
+        {
+          "name": "approvedBy",
+          "type": "UUID",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "initiate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "processPayroll",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "generateDraft",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "approvePayroll",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID approverId"
+          ]
+        },
+        {
+          "name": "lock",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "closeCycle",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "Payslip",
+      "package": "PayrollManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "payslipId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "cycleId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "baseSalary",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "grossPay",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "totalDeductions",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "netPay",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "PaymentStatus",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "generate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "download",
+          "returnType": "File",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "dispute",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "String reason"
+          ]
+        },
+        {
+          "name": "markAsPaid",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "DateTime paidAt"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "SalaryStructure",
+      "package": "PayrollManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "structureId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "gradeLevel",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "basicPercent",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "housingPercent",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "transportPercent",
+          "type": "Decimal",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "calculateGross",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": [
+            "Decimal base"
+          ]
+        },
+        {
+          "name": "applyProration",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": [
+            "int worked",
+            "int total"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Deduction",
+      "package": "PayrollManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "deductionId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "payslipId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "type",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "amount",
+          "type": "Decimal",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "calculate",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "apply",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID payslipId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Allowance",
+      "package": "PayrollManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "allowanceId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "payslipId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "type",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "amount",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "isTaxable",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "calculate",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "TaxRule",
+      "package": "PayrollManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "ruleId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "country",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "bracketMin",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "bracketMax",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "rate",
+          "type": "Decimal",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "calculateTax",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": [
+            "Decimal income"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "OvertimeCalculation",
+      "package": "PayrollManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "calcId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "overtimeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "hours",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "rate",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "amount",
+          "type": "Decimal",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "compute",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "applyToPayslip",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID payslipId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FinalSettlement",
+      "package": "PayrollManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "settlementId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "exitDate",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "unusedLeavePay",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "gratuity",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "netAmount",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "PaymentStatus",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "calculate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "approve",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID approverId"
+          ]
+        },
+        {
+          "name": "process",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "PayrollAdjustment",
+      "package": "PayrollManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "adjustmentId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "payslipId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "type",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "amount",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "approvedBy",
+          "type": "UUID",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "apply",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "reverse",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "String reason"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "PayrollService",
+      "package": "PayrollManagement",
+      "type": "service",
+      "stereotype": "service",
+      "attributes": [
+        {
+          "name": "processor",
+          "type": "IPayrollProcessor",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "processPayroll",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID cycleId"
+          ]
+        },
+        {
+          "name": "calculateDeductions",
+          "returnType": "List<Deduction>",
+          "visibility": "public",
+          "parameters": [
+            "UUID payslipId"
+          ]
+        },
+        {
+          "name": "generatePayslips",
+          "returnType": "List<Payslip>",
+          "visibility": "public",
+          "parameters": [
+            "UUID cycleId"
+          ]
+        },
+        {
+          "name": "applyTax",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": [
+            "UUID payslipId"
+          ]
+        },
+        {
+          "name": "computeOvertime",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": [
+            "UUID overtimeId"
+          ]
+        },
+        {
+          "name": "processFinalSettlement",
+          "returnType": "FinalSettlement",
+          "visibility": "public",
+          "parameters": [
+            "UUID empId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LeaveType",
+      "package": "LeaveManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "typeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "name",
+          "type": "LeaveTypeEnum",
+          "visibility": "private"
+        },
+        {
+          "name": "isPaid",
+          "type": "boolean",
+          "visibility": "private"
+        },
+        {
+          "name": "requiresDocument",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getPolicy",
+          "returnType": "LeavePolicy",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "LeavePolicy",
+      "package": "LeaveManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "policyId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "maxDaysPerYear",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "minServiceMonths",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "allowCarryForward",
+          "type": "boolean",
+          "visibility": "private"
+        },
+        {
+          "name": "maxCarryForwardDays",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "allowEncashment",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "isEligible",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": [
+            "Employee e"
+          ]
+        },
+        {
+          "name": "calculateEntitlement",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": [
+            "Employee e"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LeaveRequest",
+      "package": "LeaveManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "requestId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "leaveTypeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "startDate",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "endDate",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "days",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "LeaveStatus",
+          "visibility": "private"
+        },
+        {
+          "name": "reason",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "submit",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "approve",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID approverId"
+          ]
+        },
+        {
+          "name": "reject",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "String reason"
+          ]
+        },
+        {
+          "name": "cancel",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "syncToAttendance",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "syncToPayroll",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID cycleId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "LeaveBalance",
+      "package": "LeaveManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "balanceId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "leaveTypeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "year",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "entitled",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "used",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "carryForward",
+          "type": "Decimal",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "deduct",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "Decimal days"
+          ]
+        },
+        {
+          "name": "restore",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "Decimal days"
+          ]
+        },
+        {
+          "name": "getAvailable",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "carryForwardToNextYear",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "LeaveAccrual",
+      "package": "LeaveManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "accrualId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "accrualDate",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "amount",
+          "type": "Decimal",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "processAccrual",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "LeaveAttachment",
+      "package": "LeaveManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "attachmentId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "requestId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "fileUrl",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "isVerified",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "upload",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "File f"
+          ]
+        },
+        {
+          "name": "verify",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID hrId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ApprovalDelegation",
+      "package": "LeaveManagement",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "delegationId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "delegatorId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "delegateeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "fromDate",
+          "type": "Date",
+          "visibility": "private"
+        },
+        {
+          "name": "toDate",
+          "type": "Date",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "activate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "isValidNow",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "LeaveService",
+      "package": "LeaveManagement",
+      "type": "service",
+      "stereotype": "service",
+      "attributes": [
+        {
+          "name": "workflowEngine",
+          "type": "IWorkflowEngine",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "applyLeave",
+          "returnType": "LeaveRequest",
+          "visibility": "public",
+          "parameters": [
+            "UUID empId",
+            "LeaveData data"
+          ]
+        },
+        {
+          "name": "validateLeaveBalance",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": [
+            "UUID empId",
+            "UUID typeId",
+            "Decimal days"
+          ]
+        },
+        {
+          "name": "approveLeave",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID requestId",
+            "UUID approverId"
+          ]
+        },
+        {
+          "name": "rejectLeave",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID requestId",
+            "String reason"
+          ]
+        },
+        {
+          "name": "syncWithPayroll",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID cycleId"
+          ]
+        },
+        {
+          "name": "processAccruals",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "Date asOf"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ApprovalWorkflow",
+      "package": "WorkflowEngine",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "workflowId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "entityType",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "entityId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "currentStageId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "ApprovalStatus",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "advance",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "escalate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID escalateTo"
+          ]
+        },
+        {
+          "name": "terminate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "String reason"
+          ]
+        },
+        {
+          "name": "getApprovers",
+          "returnType": "List<UUID>",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "WorkflowStage",
+      "package": "WorkflowEngine",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "stageId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "workflowId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "order",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "approverId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "ApprovalStatus",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "activate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "complete",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "WorkflowTransition",
+      "package": "WorkflowEngine",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "transitionId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "fromStageId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "toStageId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "condition",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "evaluate",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": [
+            "Map<String,Object> ctx"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ApprovalMatrix",
+      "package": "WorkflowEngine",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "matrixId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "entityType",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "stages",
+          "type": "List<WorkflowStage>",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getApproverForStage",
+          "returnType": "UUID",
+          "visibility": "public",
+          "parameters": [
+            "int stage",
+            "UUID empId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "EscalationRule",
+      "package": "WorkflowEngine",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "ruleId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "triggerAfterHours",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "escalateToRole",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "notifyOnEscalation",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "shouldEscalate",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": [
+            "WorkflowStage stage"
+          ]
+        },
+        {
+          "name": "execute",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID workflowId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "WorkflowHistory",
+      "package": "WorkflowEngine",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "historyId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "workflowId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "action",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "actorId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "timestamp",
+          "type": "DateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "comments",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "record",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "WorkflowService",
+      "package": "WorkflowEngine",
+      "type": "service",
+      "stereotype": "service",
+      "attributes": [
+        {
+          "name": "engine",
+          "type": "IWorkflowEngine",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "startWorkflow",
+          "returnType": "UUID",
+          "visibility": "public",
+          "parameters": [
+            "String entityType",
+            "UUID entityId"
+          ]
+        },
+        {
+          "name": "processDecision",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID workflowId",
+            "String decision",
+            "UUID actorId"
+          ]
+        },
+        {
+          "name": "checkEscalations",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "getWorkflowStatus",
+          "returnType": "ApprovalStatus",
+          "visibility": "public",
+          "parameters": [
+            "UUID workflowId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Role",
+      "package": "SecurityAndRBAC",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "roleId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "isSystemRole",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "addPermission",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID permId"
+          ]
+        },
+        {
+          "name": "hasPermission",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": [
+            "String resource"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Permission",
+      "package": "SecurityAndRBAC",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "permId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "resource",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "action",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "module",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "grant",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "revoke",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "Session",
+      "package": "SecurityAndRBAC",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "sessionId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "accountId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "token",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "expiresAt",
+          "type": "DateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "validate",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "invalidate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "AccessPolicy",
+      "package": "SecurityAndRBAC",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "policyId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "module",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "allowedRoles",
+          "type": "List<String>",
+          "visibility": "private"
+        },
+        {
+          "name": "restrictedFields",
+          "type": "List<String>",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "isAllowed",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": [
+            "UUID roleId",
+            "String resource"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AuthenticationService",
+      "package": "SecurityAndRBAC",
+      "type": "service",
+      "stereotype": "service",
+      "attributes": [
+        {
+          "name": "provider",
+          "type": "IAuthenticationProvider",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "login",
+          "returnType": "Session",
+          "visibility": "public",
+          "parameters": [
+            "String user",
+            "String pass"
+          ]
+        },
+        {
+          "name": "logout",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID sessionId"
+          ]
+        },
+        {
+          "name": "validateToken",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": [
+            "String token"
+          ]
+        },
+        {
+          "name": "resetPassword",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID accountId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notification",
+      "package": "NotificationSystem",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "notifId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "recipientId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "type",
+          "type": "NotificationType",
+          "visibility": "private"
+        },
+        {
+          "name": "subject",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "body",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "isRead",
+          "type": "boolean",
+          "visibility": "private"
+        },
+        {
+          "name": "sentAt",
+          "type": "DateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "send",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "markAsRead",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "escalate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "NotificationTemplate",
+      "package": "NotificationSystem",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "templateId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "event",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "subject",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "bodyTemplate",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "channels",
+          "type": "List<NotificationType>",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "render",
+          "returnType": "String",
+          "visibility": "public",
+          "parameters": [
+            "Map<String,Object> vars"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "EventTrigger",
+      "package": "NotificationSystem",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "triggerId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "eventName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "module",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "templateId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "isActive",
+          "type": "boolean",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "fire",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "Map<String,Object> context"
+          ]
+        },
+        {
+          "name": "evaluate",
+          "returnType": "boolean",
+          "visibility": "public",
+          "parameters": [
+            "Object event"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "NotificationService",
+      "package": "NotificationSystem",
+      "type": "service",
+      "stereotype": "service",
+      "attributes": [
+        {
+          "name": "sender",
+          "type": "INotificationSender",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "notify",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID recipientId",
+            "String event",
+            "Map<String,Object> data"
+          ]
+        },
+        {
+          "name": "notifyBulk",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "List<UUID> recipients",
+            "String event"
+          ]
+        },
+        {
+          "name": "markAllRead",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID accountId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AnalyticsDashboard",
+      "package": "AnalyticsAndReporting",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "dashboardId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "targetRole",
+          "type": "UserRoleType",
+          "visibility": "private"
+        },
+        {
+          "name": "widgets",
+          "type": "List<WorkforceMetric>",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "refresh",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "export",
+          "returnType": "File",
+          "visibility": "public",
+          "parameters": [
+            "String format"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "KPIReport",
+      "package": "AnalyticsAndReporting",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "reportId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "period",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "generatedAt",
+          "type": "DateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "metrics",
+          "type": "List<WorkforceMetric>",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "generate",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "export",
+          "returnType": "File",
+          "visibility": "public",
+          "parameters": [
+            "String format"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "WorkforceMetric",
+      "package": "AnalyticsAndReporting",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "metricId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "value",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "trend",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "asOf",
+          "type": "DateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "compute",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "compareWithPrevious",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "PayrollAnalytics",
+      "package": "AnalyticsAndReporting",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "totalLaborCost",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "avgSalary",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "overtimeCostRatio",
+          "type": "Decimal",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "computeLaborCost",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": [
+            "String period"
+          ]
+        },
+        {
+          "name": "detectPayrollAnomalies",
+          "returnType": "List<String>",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "AttendanceAnalytics",
+      "package": "AnalyticsAndReporting",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "absenteeismRate",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "latenessFrequency",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "overtimeHoursTotal",
+          "type": "Decimal",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "computeAbsenteeism",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": [
+            "String period"
+          ]
+        },
+        {
+          "name": "identifyPatterns",
+          "returnType": "List<WorkforceMetric>",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "LeaveAnalytics",
+      "package": "AnalyticsAndReporting",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "leaveUtilizationRate",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "unpaidLeaveTotal",
+          "type": "Decimal",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "computeUtilization",
+          "returnType": "Decimal",
+          "visibility": "public",
+          "parameters": [
+            "String period"
+          ]
+        },
+        {
+          "name": "detectAbusePatterns",
+          "returnType": "List<String>",
+          "visibility": "public",
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "name": "PredictiveAlert",
+      "package": "AnalyticsAndReporting",
+      "type": "class",
+      "stereotype": "entity",
+      "attributes": [
+        {
+          "name": "alertId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "alertType",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "severity",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "message",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "detectedAt",
+          "type": "DateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "trigger",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "dismiss",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "UUID userId"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ReportingService",
+      "package": "AnalyticsAndReporting",
+      "type": "service",
+      "stereotype": "service",
+      "attributes": [
+        {
+          "name": "generator",
+          "type": "IReportGenerator",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "generateReport",
+          "returnType": "Report",
+          "visibility": "public",
+          "parameters": [
+            "String type",
+            "Map<String,Object> params"
+          ]
+        },
+        {
+          "name": "exportReport",
+          "returnType": "File",
+          "visibility": "public",
+          "parameters": [
+            "UUID reportId",
+            "String format"
+          ]
+        },
+        {
+          "name": "scheduleReport",
+          "returnType": "void",
+          "visibility": "public",
+          "parameters": [
+            "String cron",
+            "String type"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AnalyticsService",
+      "package": "AnalyticsAndReporting",
+      "type": "service",
+      "stereotype": "service",
+      "methods": [
+        {
+          "name": "computeWorkforceMetrics",
+          "returnType": "List<WorkforceMetric>",
+          "visibility": "public",
+          "parameters": [
+            "String period"
+          ]
+        },
+        {
+          "name": "runPredictiveModel",
+          "returnType": "List<PredictiveAlert>",
+          "visibility": "public",
+          "parameters": []
+        },
+        {
+          "name": "buildDashboard",
+          "returnType": "AnalyticsDashboard",
+          "visibility": "public",
+          "parameters": [
+            "UserRoleType role"
+          ]
+        }
+      ]
+    }
+  ],
+  "enums": [
+    {
+      "name": "EmploymentStatus",
+      "package": "EmployeeManagement",
+      "values": [
+        "ACTIVE",
+        "INACTIVE",
+        "ON_LEAVE",
+        "TERMINATED",
+        "PROBATION",
+        "SUSPENDED"
+      ]
+    },
+    {
+      "name": "ContractType",
+      "package": "EmployeeManagement",
+      "values": [
+        "FULL_TIME",
+        "PART_TIME",
+        "CONTRACT",
+        "INTERN",
+        "FREELANCE"
+      ]
+    },
+    {
+      "name": "UserRoleType",
+      "package": "EmployeeManagement",
+      "values": [
+        "EMPLOYEE",
+        "HR_MANAGER",
+        "DEPT_MANAGER",
+        "PAYROLL_MANAGER",
+        "SYSTEM_ADMIN",
+        "AUDITOR",
+        "EXECUTIVE"
+      ]
+    },
+    {
+      "name": "ApprovalStatus",
+      "package": "WorkflowEngine",
+      "values": [
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+        "ESCALATED",
+        "WITHDRAWN",
+        "DELEGATED"
+      ]
+    },
+    {
+      "name": "AttendanceStatus",
+      "package": "TimeManagement",
+      "values": [
+        "PRESENT",
+        "ABSENT",
+        "LATE",
+        "HALF_DAY",
+        "ON_LEAVE",
+        "HOLIDAY",
+        "MISSED_PUNCH"
+      ]
+    },
+    {
+      "name": "LeaveStatus",
+      "package": "LeaveManagement",
+      "values": [
+        "DRAFT",
+        "SUBMITTED",
+        "PENDING_MANAGER",
+        "APPROVED",
+        "REJECTED",
+        "CANCELLED",
+        "FINALIZED"
+      ]
+    },
+    {
+      "name": "LeaveTypeEnum",
+      "package": "LeaveManagement",
+      "values": [
+        "ANNUAL",
+        "SICK",
+        "MATERNITY",
+        "PATERNITY",
+        "UNPAID",
+        "EMERGENCY",
+        "BEREAVEMENT",
+        "STUDY"
+      ]
+    },
+    {
+      "name": "PayrollStatus",
+      "package": "PayrollManagement",
+      "values": [
+        "DRAFT",
+        "PROCESSING",
+        "PENDING_APPROVAL",
+        "APPROVED",
+        "LOCKED",
+        "CLOSED",
+        "ERROR"
+      ]
+    },
+    {
+      "name": "PaymentStatus",
+      "package": "PayrollManagement",
+      "values": [
+        "PENDING",
+        "PROCESSED",
+        "FAILED",
+        "REVERSED",
+        "DISPUTED"
+      ]
+    },
+    {
+      "name": "NotificationType",
+      "package": "NotificationSystem",
+      "values": [
+        "EMAIL",
+        "IN_APP",
+        "SMS",
+        "PUSH"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "source": "Employee",
+      "target": "HRManager",
+      "type": "Inheritance",
+      "multiplicitySource": "",
+      "multiplicityTarget": "",
+      "label": "extends"
+    },
+    {
+      "source": "Employee",
+      "target": "DepartmentManager",
+      "type": "Inheritance",
+      "multiplicitySource": "",
+      "multiplicityTarget": "",
+      "label": "extends"
+    },
+    {
+      "source": "Employee",
+      "target": "PayrollManager",
+      "type": "Inheritance",
+      "multiplicitySource": "",
+      "multiplicityTarget": "",
+      "label": "extends"
+    },
+    {
+      "source": "Employee",
+      "target": "SystemAdmin",
+      "type": "Inheritance",
+      "multiplicitySource": "",
+      "multiplicityTarget": "",
+      "label": "extends"
+    },
+    {
+      "source": "Employee",
+      "target": "Auditor",
+      "type": "Inheritance",
+      "multiplicitySource": "",
+      "multiplicityTarget": "",
+      "label": "extends"
+    },
+    {
+      "source": "Employee",
+      "target": "ExecutiveManager",
+      "type": "Inheritance",
+      "multiplicitySource": "",
+      "multiplicityTarget": "",
+      "label": "extends"
+    },
+    {
+      "source": "NotificationService",
+      "target": "INotificationSender",
+      "type": "Realization",
+      "multiplicitySource": "",
+      "multiplicityTarget": "",
+      "label": "implements"
+    },
+    {
+      "source": "PayrollService",
+      "target": "IPayrollProcessor",
+      "type": "Realization",
+      "multiplicitySource": "",
+      "multiplicityTarget": "",
+      "label": "implements"
+    },
+    {
+      "source": "AttendanceService",
+      "target": "IAttendanceCalculator",
+      "type": "Realization",
+      "multiplicitySource": "",
+      "multiplicityTarget": "",
+      "label": "implements"
+    },
+    {
+      "source": "WorkflowService",
+      "target": "IWorkflowEngine",
+      "type": "Realization",
+      "multiplicitySource": "",
+      "multiplicityTarget": "",
+      "label": "implements"
+    },
+    {
+      "source": "EmployeeService",
+      "target": "IAuditTracker",
+      "type": "Realization",
+      "multiplicitySource": "",
+      "multiplicityTarget": "",
+      "label": "implements"
+    },
+    {
+      "source": "AuthenticationService",
+      "target": "IAuthenticationProvider",
+      "type": "Realization",
+      "multiplicitySource": "",
+      "multiplicityTarget": "",
+      "label": "implements"
+    },
+    {
+      "source": "ReportingService",
+      "target": "IReportGenerator",
+      "type": "Realization",
+      "multiplicitySource": "",
+      "multiplicityTarget": "",
+      "label": "implements"
+    },
+    {
+      "source": "Employee",
+      "target": "EmployeeProfile",
+      "type": "Composition",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1",
+      "label": "has"
+    },
+    {
+      "source": "Employee",
+      "target": "EmergencyContact",
+      "type": "Composition",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "has"
+    },
+    {
+      "source": "Employee",
+      "target": "EmploymentContract",
+      "type": "Composition",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1..*",
+      "label": "bound by"
+    },
+    {
+      "source": "Employee",
+      "target": "EmployeeDocument",
+      "type": "Aggregation",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "stores"
+    },
+    {
+      "source": "Employee",
+      "target": "UserAccount",
+      "type": "Association",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1",
+      "label": "owns"
+    },
+    {
+      "source": "UserAccount",
+      "target": "AuditLog",
+      "type": "Aggregation",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "tracked by"
+    },
+    {
+      "source": "UserAccount",
+      "target": "Role",
+      "type": "Association",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1..*",
+      "label": "assigned"
+    },
+    {
+      "source": "Role",
+      "target": "Permission",
+      "type": "Aggregation",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "grants"
+    },
+    {
+      "source": "UserAccount",
+      "target": "Session",
+      "type": "Composition",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "creates"
+    },
+    {
+      "source": "AuditLog",
+      "target": "LeaveRequest",
+      "type": "Dependency",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1",
+      "label": "tracks"
+    },
+    {
+      "source": "AuditLog",
+      "target": "PayrollCycle",
+      "type": "Dependency",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1",
+      "label": "tracks"
+    },
+    {
+      "source": "AuditLog",
+      "target": "AttendanceRecord",
+      "type": "Dependency",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1",
+      "label": "tracks"
+    },
+    {
+      "source": "AuditLog",
+      "target": "EmployeeProfile",
+      "type": "Dependency",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1",
+      "label": "tracks"
+    },
+    {
+      "source": "Employee",
+      "target": "AttendanceRecord",
+      "type": "Association",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "has"
+    },
+    {
+      "source": "Employee",
+      "target": "OvertimeRequest",
+      "type": "Association",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "submits"
+    },
+    {
+      "source": "Employee",
+      "target": "TimeSheet",
+      "type": "Aggregation",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "has"
+    },
+    {
+      "source": "Shift",
+      "target": "ShiftAssignment",
+      "type": "Aggregation",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "assigned via"
+    },
+    {
+      "source": "ShiftAssignment",
+      "target": "Employee",
+      "type": "Association",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1",
+      "label": "targets"
+    },
+    {
+      "source": "BiometricLog",
+      "target": "AttendanceRecord",
+      "type": "Dependency",
+      "multiplicitySource": "1..*",
+      "multiplicityTarget": "1",
+      "label": "builds"
+    },
+    {
+      "source": "AttendanceRecord",
+      "target": "TimeSheet",
+      "type": "Aggregation",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1",
+      "label": "in"
+    },
+    {
+      "source": "LatenessRule",
+      "target": "AttendanceRecord",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "evaluates"
+    },
+    {
+      "source": "OvertimeRequest",
+      "target": "OvertimeCalculation",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1",
+      "label": "produces"
+    },
+    {
+      "source": "TimeSheet",
+      "target": "PayrollCycle",
+      "type": "Dependency",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1",
+      "label": "feeds"
+    },
+    {
+      "source": "Employee",
+      "target": "Payslip",
+      "type": "Association",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "receives"
+    },
+    {
+      "source": "PayrollCycle",
+      "target": "Payslip",
+      "type": "Composition",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1..*",
+      "label": "generates"
+    },
+    {
+      "source": "Payslip",
+      "target": "Deduction",
+      "type": "Composition",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "contains"
+    },
+    {
+      "source": "Payslip",
+      "target": "Allowance",
+      "type": "Composition",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "contains"
+    },
+    {
+      "source": "Payslip",
+      "target": "PayrollAdjustment",
+      "type": "Aggregation",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "adjusted by"
+    },
+    {
+      "source": "SalaryStructure",
+      "target": "Payslip",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "computes"
+    },
+    {
+      "source": "TaxRule",
+      "target": "Deduction",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "generates"
+    },
+    {
+      "source": "OvertimeCalculation",
+      "target": "Payslip",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1",
+      "label": "adds to"
+    },
+    {
+      "source": "Employee",
+      "target": "FinalSettlement",
+      "type": "Association",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..1",
+      "label": "receives"
+    },
+    {
+      "source": "FinalSettlement",
+      "target": "Payslip",
+      "type": "Aggregation",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "produces"
+    },
+    {
+      "source": "AttendanceRecord",
+      "target": "Payslip",
+      "type": "Dependency",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1",
+      "label": "feeds"
+    },
+    {
+      "source": "Employee",
+      "target": "LeaveRequest",
+      "type": "Association",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "submits"
+    },
+    {
+      "source": "LeaveRequest",
+      "target": "LeaveType",
+      "type": "Association",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1",
+      "label": "of type"
+    },
+    {
+      "source": "LeaveType",
+      "target": "LeavePolicy",
+      "type": "Aggregation",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1",
+      "label": "governed by"
+    },
+    {
+      "source": "LeaveRequest",
+      "target": "LeaveBalance",
+      "type": "Dependency",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1",
+      "label": "deducts from"
+    },
+    {
+      "source": "LeaveBalance",
+      "target": "LeaveAccrual",
+      "type": "Aggregation",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "grows via"
+    },
+    {
+      "source": "LeaveRequest",
+      "target": "LeaveAttachment",
+      "type": "Composition",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "includes"
+    },
+    {
+      "source": "ApprovalDelegation",
+      "target": "LeaveRequest",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "delegates"
+    },
+    {
+      "source": "LeaveRequest",
+      "target": "AttendanceRecord",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "syncs to"
+    },
+    {
+      "source": "LeaveRequest",
+      "target": "PayrollAdjustment",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..1",
+      "label": "triggers"
+    },
+    {
+      "source": "ApprovalWorkflow",
+      "target": "WorkflowStage",
+      "type": "Composition",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1..*",
+      "label": "has"
+    },
+    {
+      "source": "WorkflowStage",
+      "target": "WorkflowTransition",
+      "type": "Aggregation",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "transitions"
+    },
+    {
+      "source": "ApprovalWorkflow",
+      "target": "WorkflowHistory",
+      "type": "Composition",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "records"
+    },
+    {
+      "source": "ApprovalWorkflow",
+      "target": "LeaveRequest",
+      "type": "Association",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1",
+      "label": "manages"
+    },
+    {
+      "source": "ApprovalWorkflow",
+      "target": "OvertimeRequest",
+      "type": "Association",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1",
+      "label": "manages"
+    },
+    {
+      "source": "ApprovalWorkflow",
+      "target": "PayrollCycle",
+      "type": "Association",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1",
+      "label": "gates"
+    },
+    {
+      "source": "EscalationRule",
+      "target": "ApprovalWorkflow",
+      "type": "Dependency",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1",
+      "label": "applies to"
+    },
+    {
+      "source": "ApprovalMatrix",
+      "target": "ApprovalWorkflow",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "configures"
+    },
+    {
+      "source": "Notification",
+      "target": "Employee",
+      "type": "Association",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1",
+      "label": "targets"
+    },
+    {
+      "source": "EventTrigger",
+      "target": "Notification",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "creates"
+    },
+    {
+      "source": "NotificationTemplate",
+      "target": "Notification",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "renders"
+    },
+    {
+      "source": "AnalyticsDashboard",
+      "target": "WorkforceMetric",
+      "type": "Aggregation",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "displays"
+    },
+    {
+      "source": "KPIReport",
+      "target": "WorkforceMetric",
+      "type": "Aggregation",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "0..*",
+      "label": "contains"
+    },
+    {
+      "source": "AnalyticsService",
+      "target": "PayrollAnalytics",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1",
+      "label": "uses"
+    },
+    {
+      "source": "AnalyticsService",
+      "target": "AttendanceAnalytics",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1",
+      "label": "uses"
+    },
+    {
+      "source": "AnalyticsService",
+      "target": "LeaveAnalytics",
+      "type": "Dependency",
+      "multiplicitySource": "1",
+      "multiplicityTarget": "1",
+      "label": "uses"
+    },
+    {
+      "source": "PredictiveAlert",
+      "target": "AnalyticsDashboard",
+      "type": "Dependency",
+      "multiplicitySource": "0..*",
+      "multiplicityTarget": "1",
+      "label": "surfaced in"
+    }
+  ],
+  "constraints": [
+    {
+      "id": "C-001",
+      "entity": "Employee",
+      "rule": "email must be unique across all employees"
+    },
+    {
+      "id": "C-002",
+      "entity": "Employee",
+      "rule": "baseSalary must be >= 0"
+    },
+    {
+      "id": "C-003",
+      "entity": "EmploymentContract",
+      "rule": "endDate must be null or > startDate"
+    },
+    {
+      "id": "C-004",
+      "entity": "AttendanceRecord",
+      "rule": "checkOut must be after checkIn when both present"
+    },
+    {
+      "id": "C-005",
+      "entity": "AttendanceRecord",
+      "rule": "workedHours >= 0"
+    },
+    {
+      "id": "C-006",
+      "entity": "LeaveBalance",
+      "rule": "available balance must never go below 0 for paid leave"
+    },
+    {
+      "id": "C-007",
+      "entity": "LeaveRequest",
+      "rule": "endDate >= startDate"
+    },
+    {
+      "id": "C-008",
+      "entity": "LeaveRequest",
+      "rule": "status transitions: DRAFT\u2192SUBMITTED\u2192PENDING_MANAGER\u2192APPROVED/REJECTED\u2192FINALIZED"
+    },
+    {
+      "id": "C-009",
+      "entity": "PayrollCycle",
+      "rule": "cycle cannot close before status reaches APPROVED"
+    },
+    {
+      "id": "C-010",
+      "entity": "PayrollCycle",
+      "rule": "locked cycle cannot be modified without unfreeze"
+    },
+    {
+      "id": "C-011",
+      "entity": "Payslip",
+      "rule": "netPay = grossPay - totalDeductions; must not be negative without override"
+    },
+    {
+      "id": "C-012",
+      "entity": "TimeSheet",
+      "rule": "payroll sync blocked if hasMissingPunches is true"
+    },
+    {
+      "id": "C-013",
+      "entity": "TaxRule",
+      "rule": "bracketMax > bracketMin"
+    },
+    {
+      "id": "C-014",
+      "entity": "LeavePolicy",
+      "rule": "maxCarryForwardDays <= maxDaysPerYear"
+    },
+    {
+      "id": "C-015",
+      "entity": "ShiftAssignment",
+      "rule": "effectiveTo must be null or > effectiveFrom"
+    },
+    {
+      "id": "C-016",
+      "entity": "UserAccount",
+      "rule": "username must be unique"
+    },
+    {
+      "id": "C-017",
+      "entity": "ApprovalDelegation",
+      "rule": "toDate > fromDate; delegator != delegatee"
+    },
+    {
+      "id": "C-018",
+      "entity": "OvertimeRequest",
+      "rule": "hours > 0 and <= policy maximum"
+    },
+    {
+      "id": "C-019",
+      "entity": "EscalationRule",
+      "rule": "triggerAfterHours > 0"
+    },
+    {
+      "id": "C-020",
+      "entity": "FinalSettlement",
+      "rule": "must only be created after employee deactivation"
+    }
+  ],
+  "crossModuleIntegrations": [
+    {
+      "from": "LeaveManagement",
+      "to": "TimeManagement",
+      "description": "Approved leave syncs to attendance so absences not counted as worked hours"
+    },
+    {
+      "from": "LeaveManagement",
+      "to": "PayrollManagement",
+      "description": "Unpaid leave deductions and encashments pushed as PayrollAdjustments at cycle processing"
+    },
+    {
+      "from": "TimeManagement",
+      "to": "PayrollManagement",
+      "description": "TimeSheet feeds workedHours and overtimeHours to PayrollCycle; missing punches block run"
+    },
+    {
+      "from": "EmployeeManagement",
+      "to": "TimeManagement",
+      "description": "Employee contractType and probationEndDate drive shift assignment and scheduling rules"
+    },
+    {
+      "from": "EmployeeManagement",
+      "to": "PayrollManagement",
+      "description": "Employee baseSalary and gradeLevel determine SalaryStructure applicability"
+    },
+    {
+      "from": "EmployeeManagement",
+      "to": "LeaveManagement",
+      "description": "Employee tenure and contractType determine leave eligibility and entitlements"
+    },
+    {
+      "from": "WorkflowEngine",
+      "to": "LeaveManagement",
+      "description": "ApprovalWorkflow drives multi-level leave request approvals with escalation"
+    },
+    {
+      "from": "WorkflowEngine",
+      "to": "PayrollManagement",
+      "description": "ApprovalWorkflow gates payroll cycle progression"
+    },
+    {
+      "from": "NotificationSystem",
+      "to": "All Modules",
+      "description": "EventTrigger fires notifications on key state transitions across all modules"
+    },
+    {
+      "from": "AnalyticsAndReporting",
+      "to": "All Modules",
+      "description": "AnalyticsService consumes data from all modules for KPIs and predictive alerts"
+    }
+  ]
+}
