@@ -163,7 +163,10 @@ export const leaveAPI = {
   getPolicies:        ()       => api.get('/leave/policies'),
   getMyBalances:      (params) => api.get('/leave/my/balances', { params }),
   getMyRequests:      (params) => api.get('/leave/my/requests', { params }),
-  submit:             (data)   => api.post('/leave/requests', data),
+  // ── FIX: Explicitly set multipart/form-data here ──
+  submit:             (data)   => api.post('/leave/requests', data, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
   getManagerInbox:    ()       => api.get('/leave/inbox'),
   listAll:            (params) => api.get('/leave/requests', { params }),
   getRequest:         (id)     => api.get(`/leave/requests/${id}`),

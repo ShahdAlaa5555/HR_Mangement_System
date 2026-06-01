@@ -49,17 +49,22 @@ async function bulkProcessRequests(req, res) {
 }
 // src/modules/leave/leave.controller.js
 
+// src/modules/leave/controllers/leave.controller.js
 async function submitLeaveRequest(req, res) {
   const userId = req.user.EmployeeID || req.user.id;
-  const leaveData = req.body;
 
-  // ── FIX: Capture the file path from multer ──
-  if (req.file) {
-    // We save the path so the database column 'DocumentReference' isn't NULL
-    leaveData.documentReference = req.file.path; 
-  }
+  // ── FIX: Save the relative path so the frontend can easily display it ──
+  // Since Multer is saving to 'hr_documents', we prefix it so the frontend knows where to look.
+  const documentReference = req.file
+    ? `uploads/hr_documents/${req.file.filename}` 
+    : null;
 
-  const result = await leaveService.submitLeaveRequest(userId, leaveData);
+  const payload = {
+    ...req.body,
+    documentReference, 
+  };
+
+  const result = await service.submitLeaveRequest(userId, payload);
   return res.status(201).json({ success: true, data: result });
 }
 // ── FIX: Safe Update Mapping (LV-017) ──

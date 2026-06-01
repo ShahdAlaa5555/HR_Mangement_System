@@ -1,24 +1,21 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, Bell, ChevronDown, Check, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, ChevronDown, User as UserIcon, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { notificationAPI } from '../../api/services';
 import toast from 'react-hot-toast';
 
-
-export default function Header({ onSearch }) {
+export default function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [notifOpen, setNotifOpen] = useState(false); // 👈 Controls popup
+  const [notifOpen, setNotifOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]); // 👈 Stores real data
-  const [searchVal, setSearchVal] = useState('');
+  const [notifications, setNotifications] = useState([]);
   
   const menuRef = useRef(null);
   const notifRef = useRef(null);
 
   // ── FETCH NOTIFICATIONS ──
-// ── FETCH NOTIFICATIONS ──
   const loadNotifications = useCallback(async () => {
     try {
       const res = await notificationAPI.list();
@@ -34,8 +31,6 @@ export default function Header({ onSearch }) {
       loadNotifications();
 
       // ── POLL EVERY 30 SECONDS ──
-      // This ensures the employee/manager sees the dot appear 
-      // without refreshing their browser.
       const interval = setInterval(() => {
         loadNotifications();
       }, 30000); 
@@ -44,7 +39,7 @@ export default function Header({ onSearch }) {
     }
   }, [user, loadNotifications]);
 
-  // Handle clicks outside to close
+  // Handle clicks outside to close dropdowns
   useEffect(() => {
     function handler(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
@@ -60,56 +55,62 @@ export default function Header({ onSearch }) {
     try {
       await notificationAPI.markAllAsRead();
       loadNotifications();
-    } catch (err) { toast.error("Action failed"); }
+    } catch (err) { 
+      toast.error("Action failed"); 
+    }
   };
 
   const displayName = user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.name || 'User';
   const initial = displayName[0]?.toUpperCase() || 'U';
 
   return (
-    <header className="header">
-      <h1 className="header-title">Leave Management</h1>
+    <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', height: '64px', borderBottom: '1px solid #eee', background: '#fff' }}>
+      <h1 className="header-title" style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Leave Management</h1>
 
-      <div className="header-search">
-        <Search size={15} className="header-search-icon" />
-        <input type="text" placeholder="Search..." value={searchVal} onChange={(e) => { setSearchVal(e.target.value); onSearch?.(e.target.value); }} />
-      </div>
-
-      <div className="header-actions">
+      <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        
         {/* ── NOTIFICATION POPUP ── */}
         <div style={{ position: 'relative' }} ref={notifRef}>
-          <button className="icon-btn" onClick={() => setNotifOpen(!notifOpen)}>
-            <Bell size={18} />
-            {unreadCount > 0 && <span className="notif-dot" />}
+          <button 
+            className="icon-btn" 
+            onClick={() => setNotifOpen(!notifOpen)}
+            style={{ position: 'relative', background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center' }}
+          >
+            <Bell size={20} color="#4b5563" />
+            {unreadCount > 0 && (
+              <span className="notif-dot" style={{ position: 'absolute', top: '6px', right: '8px', width: '8px', height: '8px', backgroundColor: '#ef4444', borderRadius: '50%' }} />
+            )}
           </button>
 
           {notifOpen && (
             <div className="notif-popup" style={{
-              position: 'absolute', top: '120%', right: 0, width: 320,
-              background: '#fff', border: '1px solid #eee', borderRadius: 12,
-              boxShadow: '0 10px 25px rgba(0,0,0,0.1)', zIndex: 1000,
+              position: 'absolute', top: 'calc(100% + 10px)', right: 0, width: 320,
+              background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12,
+              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)', zIndex: 1000,
               maxHeight: 450, overflowY: 'auto'
             }}>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid #f5f5f5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Notifications</span>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827' }}>Notifications</span>
                 {unreadCount > 0 && (
-                  <button onClick={markAllRead} style={{ fontSize: '0.75rem', color: 'var(--blue)', background: 'none', border: 'none', cursor: 'pointer' }}>Mark all read</button>
+                  <button onClick={markAllRead} style={{ fontSize: '0.75rem', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>
+                    Mark all read
+                  </button>
                 )}
               </div>
               
               <div style={{ padding: '8px 0' }}>
                 {notifications.length === 0 ? (
-                  <div style={{ padding: 20, textAlign: 'center', color: '#888', fontSize: '0.8rem' }}>No notifications yet</div>
+                  <div style={{ padding: 20, textAlign: 'center', color: '#6b7280', fontSize: '0.85rem' }}>No notifications yet</div>
                 ) : (
                   notifications.map(n => (
                     <div key={n.NotificationID} style={{
-                      padding: '12px 16px', borderBottom: '1px solid #fafafa',
-                      background: n.IsRead ? 'transparent' : 'rgba(59, 130, 246, 0.05)',
+                      padding: '12px 16px', borderBottom: '1px solid #f9fafb',
+                      background: n.IsRead ? 'transparent' : '#eff6ff',
                       cursor: 'pointer'
                     }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.8rem', marginBottom: 2, color: '#333' }}>{n.Title}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#666', lineHeight: 1.4 }}>{n.Body}</div>
-                      <div style={{ fontSize: '0.65rem', color: '#999', marginTop: 6 }}>{new Date(n.CreatedAt || Date.now()).toLocaleString()}</div>
+                      <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: 4, color: '#1f2937' }}>{n.Title}</div>
+                      <div style={{ fontSize: '0.8rem', color: '#4b5563', lineHeight: 1.4 }}>{n.Body}</div>
+                      <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginTop: 8 }}>{new Date(n.CreatedAt || Date.now()).toLocaleString()}</div>
                     </div>
                   ))
                 )}
@@ -118,21 +119,68 @@ export default function Header({ onSearch }) {
           )}
         </div>
 
-        {/* User Menu */}
+        {/* ── USER MENU DROPDOWN ── */}
         <div style={{ position: 'relative' }} ref={menuRef}>
-          <button className="avatar-btn" onClick={() => setMenuOpen(!menuOpen)}>
-            <div className="avatar">{initial}</div>
-            <div className="avatar-info">
-              <div className="avatar-name">{displayName}</div>
-              <div className="avatar-role">{user?.role || 'Employee'}</div>
+          <button 
+            className="avatar-btn" 
+            onClick={() => setMenuOpen(!menuOpen)}
+            style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: '8px' }}
+          >
+            <div className="avatar" style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#3b82f6', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '1rem' }}>
+              {initial}
             </div>
-            <ChevronDown size={14} style={{ marginLeft: 4, opacity: 0.5 }} />
+            <div className="avatar-info" style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
+              <span className="avatar-name" style={{ fontSize: '0.875rem', fontWeight: 600, color: '#111827' }}>{displayName}</span>
+              <span className="avatar-role" style={{ fontSize: '0.75rem', color: '#6b7280' }}>{user?.role || 'Employee'}</span>
+            </div>
+            <ChevronDown size={16} style={{ color: '#9ca3af', transition: 'transform 0.2s', transform: menuOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
           </button>
 
           {menuOpen && (
-            <div className="user-dropdown" style={{ position: 'absolute', top: '120%', right: 0, width: 180, background: '#fff', border: '1px solid #eee', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.08)', padding: 4, zIndex: 1000 }}>
-              <button className="dropdown-item" onClick={() => { navigate('/profile'); setMenuOpen(false); }}>My Profile</button>
-              <button className="dropdown-item danger" onClick={() => { logout(); navigate('/login'); }}>Logout</button>
+            <div className="user-dropdown" style={{ 
+              position: 'absolute', 
+              top: 'calc(100% + 12px)', 
+              right: 0, 
+              width: 220, 
+              background: '#fff', 
+              border: '1px solid #e5e7eb', 
+              borderRadius: '10px', 
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)', 
+              padding: '8px 0', 
+              zIndex: 1000 
+            }}>
+              {/* Dropdown Header */}
+              <div style={{ padding: '8px 16px', borderBottom: '1px solid #f3f4f6', marginBottom: '4px' }}>
+                <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {displayName}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {user?.email || 'Logged in'}
+                </div>
+              </div>
+
+              {/* Dropdown Items */}
+              <button 
+                className="dropdown-item" 
+                onClick={() => { navigate('/profile'); setMenuOpen(false); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.875rem', color: '#374151', textAlign: 'left' }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                <UserIcon size={16} color="#6b7280" />
+                My Profile
+              </button>
+              
+              <button 
+                className="dropdown-item danger" 
+                onClick={() => { logout(); navigate('/login'); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '0.875rem', color: '#ef4444', textAlign: 'left' }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                <LogOut size={16} color="#ef4444" />
+                Logout
+              </button>
             </div>
           )}
         </div>

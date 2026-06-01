@@ -130,80 +130,139 @@ async function adjustLeaveBalance(data, adminId) {
 // ── LEAVE REQUEST CORE ───────────────────────────────────────────────────────
 
 async function submitLeaveRequest(employeeId, data) {
-  const { leaveTypeId, startDate, endDate, reason, documentReference } = data;
-  // Requirement: Fetch Policy and Employee context
+
+  // ── TEMPORARY DIAGNOSTIC — REMOVE AFTER FIX ──
+  console.log('=== SERVICE RECEIVED ===');
+  console.log('typeof data.documentReference:', typeof data.documentReference);
+  console.log('data.documentReference value:', data.documentReference);
+  console.log('========================');
+  // ── NORMALIZE INPUT ─────────────────────────────
+  const leaveTypeId = Number(data.leaveTypeId || data.LeaveTypeID);
+  const startDate = data.startDate || data.StartDate;
+  const endDate = data.endDate || data.EndDate;
+  const reason = data.reason;
+const documentReference =
+  data.documentReference && typeof data.documentReference === 'string'
+    ? data.documentReference.trim() || null
+    : null;
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (!leaveTypeId) {
+    throw new AppError("leaveTypeId is missing or invalid", 400);
+  }
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    throw new AppError("Invalid startDate or endDate", 400);
+  }
+
+  const year = start.getFullYear();
+
+  // ── FETCH CONTEXT ───────────────────────────────
   const [policy, employee, existingBalance] = await Promise.all([
-    prisma.leavePolicy.findFirst({ where: { LeaveTypeID: leaveTypeId, IsActive: true } }),
-    prisma.employee.findUnique({ where: { EmployeeID: employeeId } }),
-    prisma.leaveBalance.findUnique({ 
-      where: { UQ_LeaveBalance: { EmployeeID: employeeId, LeaveTypeID: leaveTypeId, BalanceYear: new Date(startDate).getFullYear() } } 
+    prisma.leavePolicy.findFirst({
+      where: { LeaveTypeID: leaveTypeId, IsActive: true }
+    }),
+    prisma.employee.findUnique({
+      where: { EmployeeID: employeeId }
+    }),
+    prisma.leaveBalance.findUnique({
+      where: {
+        UQ_LeaveBalance: {
+          EmployeeID: employeeId,
+          LeaveTypeID: leaveTypeId,
+          BalanceYear: year
+        }
+      }
     })
   ]);
 
-  if (!existingBalance) throw new AppError('Leave balance not found for the requested year.', 404);
+  if (!employee) {
+    throw new AppError("Employee not found", 404);
+  }
 
-  // Requirement: Tenure Check
+  if (!existingBalance) {
+    throw new AppError("Leave balance not found for the requested year.", 404);
+  }
+
+  // ── TENURE CHECK ────────────────────────────────
   const tenureMonths = dayjs().diff(dayjs(employee.StartDate), 'month');
-  if (policy && policy.MinTenureMonths && tenureMonths < policy.MinTenureMonths) {
-    throw new AppError(`Tenure requirement not met. Minimum: ${policy.MinTenureMonths} months.`, 400);
+  if (policy?.MinTenureMonths && tenureMonths < policy.MinTenureMonths) {
+    throw new AppError(
+      `Tenure requirement not met. Minimum: ${policy.MinTenureMonths} months.`,
+      400
+    );
   }
 
-  // Requirement: Notice Period Check
-  const noticeDays = dayjs(startDate).diff(dayjs(), 'day');
-  if (policy && policy.NoticePeriodDays && noticeDays < policy.NoticePeriodDays) {
-    throw new AppError(`Notice period violation. ${policy.NoticePeriodDays} days notice required.`, 400);
+  // ── NOTICE CHECK ────────────────────────────────
+  const noticeDays = dayjs(start).diff(dayjs(), 'day');
+  if (policy?.NoticePeriodDays && noticeDays < policy.NoticePeriodDays) {
+    throw new AppError(
+      `Notice period violation. ${policy.NoticePeriodDays} days required.`,
+      400
+    );
   }
 
-  const holidays = await getHolidayDatesInRange(employeeId, startDate, endDate);
-  const totalDays = countEgyptianBusinessDays(startDate, endDate, holidays);
+  // ── BUSINESS DAYS ───────────────────────────────
+  const holidays = await getHolidayDatesInRange(employeeId, start, end);
+  const totalDays = countEgyptianBusinessDays(start, end, holidays);
 
-  // Requirement: Balance Check
-  const available = (Number(existingBalance.EntitledDays) + Number(existingBalance.CarryOverDays || 0)) - 
-                    (Number(existingBalance.UsedDays) + Number(existingBalance.PendingDays || 0));
-                    
+  // ── BALANCE CHECK ────────────────────────────────
+  const available =
+    (Number(existingBalance.EntitledDays) +
+      Number(existingBalance.CarryOverDays || 0)) -
+    (Number(existingBalance.UsedDays) +
+      Number(existingBalance.PendingDays || 0));
+
   if (totalDays > available) {
-    throw new AppError(`Insufficient leave balance. Requested: ${totalDays}, Available: ${available}`, 400);
+    throw new AppError(
+      `Insufficient leave balance. Requested: ${totalDays}, Available: ${available}`,
+      400
+    );
   }
 
-  // Integration & Data Integrity: Use Transaction to sync request and balance
+  // ── TRANSACTION ────────────────────────────────
   const request = await prisma.$transaction(async (tx) => {
     const newReq = await tx.leaveRequest.create({
       data: {
         EmployeeID: employeeId,
         LeaveTypeID: leaveTypeId,
-        StartDate: new Date(startDate),
-        EndDate: new Date(endDate),
+        StartDate: start,
+        EndDate: end,
         TotalDays: totalDays,
-        Reason: reason,
-        DocumentReference: documentReference || null ,
+        Reason: reason || null,
+        DocumentReference: documentReference || null,
         Status: 'SUBMITTED',
       },
     });
 
-    // Mark days as pending
     await tx.leaveBalance.update({
       where: { LeaveBalanceID: existingBalance.LeaveBalanceID },
-      data: { PendingDays: { increment: totalDays } }
+      data: { PendingDays: { increment: totalDays } },
     });
 
     return newReq;
   });
 
-  const emp = await prisma.employee.findUnique({ where: { EmployeeID: employeeId } });
-// Inside submitLeaveRequest
-if (emp.SupervisorID) {
-  await notify({
-    recipientId: emp.SupervisorID,
-    eventCode: 'LEAVE_SUBMITTED',
-    title: 'New Leave Request',
-    body: `${emp.FirstName} submitted a request for ${totalDays} days.`,
-    sourceModule: 'Leave',
-    sourceEntityId: request.LeaveRequestID
+  // ── NOTIFICATION ────────────────────────────────
+  const emp = await prisma.employee.findUnique({
+    where: { EmployeeID: employeeId }
   });
-}
+
+  if (emp?.SupervisorID) {
+    await notify({
+      recipientId: emp.SupervisorID,
+      eventCode: 'LEAVE_SUBMITTED',
+      title: 'New Leave Request',
+      body: `${emp.FirstName} submitted a request for ${totalDays} days.`,
+      sourceModule: 'Leave',
+      sourceEntityId: request.LeaveRequestID,
+    });
+  }
+
   return request;
 }
-
 /**
  * FIX A: Update Leave Request (LV-017)
  */

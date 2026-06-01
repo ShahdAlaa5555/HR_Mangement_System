@@ -119,14 +119,15 @@ function RequestRow({ req, onAction, onEdit, onOverrideClick, isSupervisor, isHR
       <td style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: 160 }}>{req.Reason}</td>
       <td>
         <div style={{ display: 'flex', gap: 6 }}>
-          {/* ── MOVED BUTTON INSIDE THIS TD ── */}
-          {isHRManager && docPath && (
+          
+          {/* ── UPDATED: Now shows for HR Manager AND Supervisor if there is a document ── */}
+          {(isHRManager || isSupervisor) && docPath && (
             <button 
               className="btn btn-ghost btn-sm" 
               onClick={() => onVerifyDoc(docPath)} 
               style={{ color: 'var(--blue)', border: '1px solid var(--blue)', display: 'flex', alignItems: 'center', gap: '4px' }}
             >
-              <Search size={13} /> Verify Doc
+              <FileText size={13} /> View Doc
             </button>
           )}
 
@@ -189,23 +190,19 @@ const handle = () => {
     return toast.error("Please fill all required fields");
   }
 
-  // Create FormData object
   const data = new FormData();
-  
-  // Append all fields
-  data.append('LeaveTypeID', form.LeaveTypeID);
-  data.append('StartDate', new Date(form.startDate).toISOString());
-  data.append('EndDate', new Date(form.endDate).toISOString());
-  data.append('IsHalfDay', form.isHalfDay);
-  data.append('Reason', form.reason || '');
 
-  // Append the file - KEY NAME MUST MATCH upload.single('documentReference') in routes
+  data.append('leaveTypeId', form.LeaveTypeID);   // ✅ FIXED
+  data.append('startDate', form.startDate);       // ✅ FIXED
+  data.append('endDate', form.endDate);           // ✅ FIXED
+  data.append('reason', form.reason || '');
+  data.append('isHalfDay', form.isHalfDay);
+
   if (form.documentReference) {
     data.append('documentReference', form.documentReference);
   }
 
-  // Pass the FormData object directly to your existing API style
-  onSubmit(data); 
+  onSubmit(data);
 };
 
   return (
@@ -727,8 +724,8 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
     try {
       setSubmitting(true);
       // Calls updateLeaveRequest mapped in backend (LV-017)
-      if(leaveAPI.update) {
-        await leaveAPI.update(id, updatedData);
+      if(leaveAPI.updateRequest) {
+        await leaveAPI.updateRequest(id, updatedData);
       } else {
         throw new Error("Update endpoint not wired to leaveAPI. Contact admin to expose LV-017.");
       }
@@ -781,14 +778,14 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
     <div style={{ width: '100%', height: '70vh' }}>
       {viewingDoc.toLowerCase().endsWith('.pdf') ? (
         <iframe 
-          src={`http://localhost:5000/${viewingDoc}`} 
+          src={`http://localhost:3000/${viewingDoc}`} 
           width="100%" 
           height="100%" 
           title="Medical PDF"
         />
       ) : (
         <img 
-          src={`http://localhost:5000/${viewingDoc}`} 
+          src={`http://localhost:3000/${viewingDoc}`} 
           style={{ width: '100%', objectFit: 'contain' }} 
           alt="Medical Evidence" 
         />
@@ -836,7 +833,47 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
 
       {isSubmitModalOpen && (
         <InlineModal title="Submit Leave Request" onClose={() => setIsSubmitModalOpen(false)}>
-           <SubmitLeaveForm leaveTypes={leaveTypes} onSubmit={(p) => leaveAPI.submit(p).then(() => { toast.success("Submitted"); setIsSubmitModalOpen(false); loadData(); })} loading={submitting} />
+           <SubmitLeaveForm 
+             leaveTypes={leaveTypes} 
+             onSubmit={(p) => {
+               setSubmitting(true);
+               leaveAPI.submit(p)
+                 .then(() => { 
+                   toast.success("Leave Request Submitted Successfully!", {
+                     icon: '🎉'
+                   }); 
+                   setIsSubmitModalOpen(false); 
+                   loadData(); 
+                 })
+                 .catch(err => {
+                   const backendMsg = getErrMsg(err);
+                   
+                   // ── TRANSLATE BACKEND ERRORS INTO FRIENDLY UI MESSAGES ──
+                   if (backendMsg.includes('Insufficient leave balance')) {
+                     toast.error("Oops! You don't have enough leave balance for these dates.", {
+                       icon: '⚖️'
+                     });
+                   } else if (backendMsg.includes('Notice period')) {
+                     toast.error("Please submit this request a bit earlier to meet the notice period policy.", {
+                       icon: '⏳'
+                     });
+                   } else if (backendMsg.includes('Tenure')) {
+                     toast.error("You haven't been with us quite long enough to use this specific leave type yet.", {
+                       icon: '🌱'
+                     });
+                   } else {
+                     // Generic fallback if it's an error we didn't specifically catch
+                     toast.error("We couldn't submit your request. Please check your details and try again.", {
+                       icon: '🛑'
+                     });
+                   }
+                 })
+                 .finally(() => {
+                   setSubmitting(false);
+                 });
+             }} 
+             loading={submitting} 
+           />
         </InlineModal>
       )}
 

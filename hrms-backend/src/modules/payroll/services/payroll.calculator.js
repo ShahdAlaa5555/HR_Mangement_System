@@ -199,17 +199,21 @@ const hourlyRate = dailyRate / hoursPerDay;
   
   lines.push({ description: `Social Insurance (${siConfig.EmployeeRatePct}%)`, amount: -employeeSI, type: 'SocialInsurance' });
   lines.push({ description: 'Income Tax (Progressive)', amount: -incomeTax, type: 'IncomeTax' });
-
-  return {
-    employeeId,
-    payrollRunId,
-    baseSalary,
-    totalEarnings: parseFloat((baseSalary + totalAllowances + overtimePay).toFixed(2)),
-    totalDeductions: parseFloat((absenceDeduction + unpaidLeaveDeduction + latenessDeduction + employeeSI + incomeTax).toFixed(2)),
-    netPay: Math.max(0, netPay),
-    belowMinimumWage: netPay < minimumWage, // This flags the anomaly for your chatbot
-    lines
-  };
+return {
+  employeeId,
+  payrollRunId,
+  baseSalary,
+  grossIncome,
+  totalEarnings: parseFloat((baseSalary + totalAllowances + overtimePay).toFixed(2)),
+  totalDeductions: parseFloat((absenceDeduction + unpaidLeaveDeduction + latenessDeduction + employeeSI + incomeTax).toFixed(2)),
+  netPay: Math.max(0, netPay),
+  belowMinimumWage: netPay < minimumWage,  // ← flat, for this test
+  flags: {
+    belowMinimumWage: netPay < minimumWage, // ← nested, for other tests
+    highAbsence: absentDays > (policy.MaxMonthlyDeductionDays || 30),
+  },
+  lines
+};
 }
 
 module.exports = { calculateEmployeePayroll };
