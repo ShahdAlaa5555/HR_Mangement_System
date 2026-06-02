@@ -10,7 +10,8 @@
     "db:generate": "npx prisma generate",
     "db:pull": "npx prisma db pull",
     "lint": "eslint src/**/*.js",
-     "test": "jest --runInBand --detectOpenHandles --coverage"
+     "test": "jest --runInBand --detectOpenHandles --coverage",
+      "postinstall": "npx prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
