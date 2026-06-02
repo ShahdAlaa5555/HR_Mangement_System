@@ -44,7 +44,7 @@ const leaveRoutes = require('./modules/leave/routes/leave.routes');
 const payrollRoutes = require('./modules/payroll/routes/payroll.routes');
 
 const app = express();
-
+app.set('trust proxy', 1);
 // ─── Upload Directory ─────────────────────────────────────────────────────────
 const uploadDir = path.join(__dirname, '..', process.env.UPLOAD_DIR || 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
