@@ -68,11 +68,7 @@ async function authenticate(req, res, next) {
     // ── FIX: Calculate the role dynamically based on PositionID ──
     let effectiveRole = decoded.role; // Default to token role
     
-    // If they are a Professor (2) or HR Manager (1), upgrade them to Manager authority
-    if (employee.PositionID === 1 || employee.PositionID === 2) {
-      effectiveRole = 'Manager';
-    }
-
+   
     req.user = {
       id: employee.EmployeeID,
       code: employee.EmployeeCode,

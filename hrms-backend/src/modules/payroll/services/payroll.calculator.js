@@ -171,22 +171,22 @@ const hourlyRate = dailyRate / hoursPerDay;
   const overtimeHours = attendanceSummary ? Number(attendanceSummary.TotalOvertimeHrs) : 0;
   const overtimePay = await calculateOvertimePay(baseSalary, overtimeHours, workingDaysInMonth, policy);
 
-  // TOTALS & TAXES
+  // ─── TOTALS & TAXES ────────────────────────────────────────────────────────
+  // 1. Calculate Gross Income first using the correct variable name
   const grossIncome = baseSalary + totalAllowances + overtimePay - absenceDeduction - unpaidLeaveDeduction - latenessDeduction;
   
   const siConfig = await getSocialInsuranceConfig();
-  const siWage = baseSalary; // Ceiling logic can be added here if SocialInsuranceConfig has a 'Ceiling' column
+  const siWage = baseSalary; 
   const employeeSI = parseFloat((siWage * (siConfig.EmployeeRatePct / 100)).toFixed(2));
   
-  // Tax is calculated on (Gross - SI) per Egyptian law
+  // 2. Use 'grossIncome' (the variable you defined above) here
   const incomeTax = await calculateMonthlyIncomeTax(Math.max(0, grossIncome - employeeSI), payRunRecord.PeriodYear);
 
-  // FINAL NET & CAP CHECK (PR-004)
+  // 3. Use 'grossIncome' here as well
   let netPay = parseFloat((grossIncome - employeeSI - incomeTax).toFixed(2));
   
-  // PR-004: Minimum Wage is pulled directly from policy.MinimumWageEGP
   const minimumWage = Number(policy.MinimumWageEGP) || 6000;
-
+  // ──────────────────────────────────────────────────────────────────────────
   // BUILD DETAILED LINES FOR FRONTEND TRANSPARENCY
   const lines = [
     { description: `Base Salary${prorationFactor < 1 ? ` (${activeDays} Days)` : ''}`, amount: baseSalary, type: 'BaseSalary' },

@@ -152,7 +152,8 @@ async function ensurePayTypes() {
 async function createOrUpdateException(runId, employeeId, exceptionType, description) {
   const existing = await prisma.payrollException.findFirst({ where: { PayrollRunID: runId, EmployeeID: employeeId, ExceptionType: exceptionType, Status: PAYROLL_EXCEPTION_STATUS.OPEN } });
   if (existing) return existing;
-  return prisma.payrollException.create({ data: { PayrollRunID: runId, EmployeeID: employeeId, ExceptionType: exceptionType, Description: description, Status: PAYROLL_EXCEPTION_STATUS.OPEN } });
+  const safeDescription = description ? description.substring(0, 250) : 'Unknown error';
+  return prisma.payrollException.create({ data: { PayrollRunID: runId, EmployeeID: employeeId, ExceptionType: exceptionType, Description: safeDescription, Status: PAYROLL_EXCEPTION_STATUS.OPEN } });
 }
 
 async function processPayrollRun(runId, opts, processedById) {
@@ -205,7 +206,16 @@ async function processPayrollRun(runId, opts, processedById) {
       }
 
       const allowancesTotal = allowances.reduce((s, ea) => s + (ea.OverrideAmount !== null ? Number(ea.OverrideAmount) : Number(ea.Allowance.Amount)), 0);
-  
+      const approvedClaims = await prisma.reimbursementClaim.findMany({
+        where: { 
+          EmployeeID: emp.EmployeeID, 
+          Status: 'Approved',
+      
+
+        }
+      });
+      const claimsTotal = approvedClaims.reduce((s, c) => s + Number(c.Amount), 0);
+      const grossEarnings = baseSalary + allowancesTotal + overtimePay + claimsTotal - absenceDeduction;
       const siWage = baseSalary;
       const employeeSI = siWage * siConfig.employeeRate;
       const employerSI = siWage * siConfig.employerRate;
@@ -215,19 +225,10 @@ async function processPayrollRun(runId, opts, processedById) {
 
       if (netPay < Number(run.Policy.MinimumWageEGP)) await createOrUpdateException(runId, emp.EmployeeID, 'BelowMinimumWage', `Net pay ${netPay.toFixed(2)} < minimum wage.`);
       // Find this section in processPayrollRun and add:
-const approvedClaims = await prisma.reimbursementClaim.findMany({
-  where: { 
-    EmployeeID: emp.EmployeeID, 
-    Status: 'Approved',
-    // Logic to ensure they haven't been paid in a previous run
-    PaidInRunID: null 
-  }
-});
 
-const claimsTotal = approvedClaims.reduce((s, c) => s + Number(c.Amount), 0);
-
+ const lines = [{ PayTypeID: payTypes.baseSalary, Description: 'Base Salary', Amount: baseSalary, Quantity: 1, SourceModule: 'Payroll' }];
 // Update Gross Earnings calculation:
-const grossEarnings = baseSalary + allowancesTotal + overtimePay + claimsTotal - absenceDeduction;
+
 
 // Add Line items for the payslip transparency:
 approvedClaims.forEach(c => {
@@ -246,7 +247,7 @@ approvedClaims.forEach(c => {
       else { entry = await prisma.payrollEntry.create({ data: { PayrollRunID: runId, EmployeeID: emp.EmployeeID, ...entryData } }); }
 
       await prisma.payrollEntryLine.deleteMany({ where: { EntryID: entry.EntryID } });
-      const lines = [{ PayTypeID: payTypes.baseSalary, Description: 'Base Salary', Amount: baseSalary, Quantity: 1, SourceModule: 'Payroll' }];
+     
       allowances.forEach((ea) => lines.push({ PayTypeID: payTypes.allowance, Description: ea.Allowance.AllowanceName, Amount: ea.OverrideAmount !== null ? Number(ea.OverrideAmount) : Number(ea.Allowance.Amount), Quantity: 1, SourceModule: 'Payroll' }));
       if (overtimePay > 0) lines.push({ PayTypeID: payTypes.overtime, Description: `Overtime (${overtimeHours}h)`, Amount: overtimePay, Quantity: overtimeHours, SourceModule: 'Attendance' });
       if (absenceDeduction > 0) lines.push({ PayTypeID: payTypes.absenceDeduction, Description: 'Absence Deduction', Amount: -absenceDeduction, Quantity: 1, SourceModule: 'Attendance' });

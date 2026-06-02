@@ -196,17 +196,27 @@ export default function PayrollPage() {
   const handleRunAction = async (runId, action) => {
     try {
       const id = parseInt(runId, 10);
-      if (action === 'process')  await payrollAPI.processRun(id, {});
-      if (action === 'approve')  await payrollAPI.approveRun(id, {});
-      if (action === 'finalize') await payrollAPI.finalizeRun(id, {});
-      if (action === 'payslips') await payrollAPI.generatePayslips(id, {});
-      if (action === 'bankfile') {
+      let result;
+
+      if (action === 'process') result = await payrollAPI.processRun(id, {});
+      else if (action === 'approve') await payrollAPI.approveRun(id, {});
+      else if (action === 'finalize') await payrollAPI.finalizeRun(id, {});
+      else if (action === 'payslips') await payrollAPI.generatePayslips(id, {});
+      else if (action === 'bankfile') {
         await payrollAPI.generateBankFile(id, { FileFormat: 'CSV' });
         toast.success('Downloading...');
         return; 
       }
-      toast.success(`Run ${action}d successfully`);
-      load(); // Reloads exceptions immediately
+
+      // Check if the process returned exceptions
+      const responseData = result?.data || result;
+      if (action === 'process' && responseData?.exceptionsCount > 0) {
+        toast.error(`Payroll processed with ${responseData.exceptionsCount} exceptions. Please check the Exceptions tab.`, { duration: 6000 });
+      } else {
+        toast.success(`Run ${action}d successfully`);
+      }
+      
+      load(); // Reloads exceptions and run status immediately
     } catch (err) {
       toast.error(err.response?.data?.error?.message || `Action ${action} failed`);
     }

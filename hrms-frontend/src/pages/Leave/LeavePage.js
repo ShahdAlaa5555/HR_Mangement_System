@@ -49,12 +49,6 @@ const STATUS_OPTIONS = [
   { value: 'REJECTED', label: 'Rejected' }, { value: 'CANCELLED', label: 'Cancelled' },
 ];
 
-const STATUS_HISTORY = [
-  { value: '', label: 'All' }, { value: 'SUBMITTED', label: 'Submitted' },
-  { value: 'PENDING_MANAGER', label: 'Pending' }, { value: 'APPROVED', label: 'Approved' },
-  { value: 'REJECTED', label: 'Rejected' }, { value: 'CANCELLED', label: 'Cancelled' },
-];
-
 const normStatus = s => (s || '').toUpperCase().replace(/_/g, '');
 const statusMatches = (reqStatus, filterValue) => {
   if (!filterValue) return true;
@@ -72,13 +66,14 @@ const toArr = (r) => {
   const d = r.data?.data || r.data?.requests || r.data || r.requests || r || [];
   return Array.isArray(d) ? d : [];
 };
+
 function RequestRow({ req, onAction, onEdit, onOverrideClick, isSupervisor, isHRManager, isBasicHR, currentUser, isSelected, onSelect, onVerifyDoc }) {
   const [acting, setActing] = useState('');
   
   const leaveTypeName = req.LeaveType?.LeaveTypeName || req.LeaveTypeName || '—';
   const empFullName = req.Employee?.FullName || req.EmployeeName || '—';
   const id = req.LeaveRequestID || req.id;
-  const docPath = req.DocumentReference || req.AttachmentURL; // Check both fields
+  const docPath = req.DocumentReference || req.AttachmentURL; 
 
   const act = async (action) => {
     setActing(action);
@@ -88,7 +83,6 @@ function RequestRow({ req, onAction, onEdit, onOverrideClick, isSupervisor, isHR
   const currentStatus = req.Status || 'SUBMITTED';
   const isFinal = ['APPROVED', 'REJECTED', 'CANCELLED'].includes(currentStatus.toUpperCase());
   
-  // Logic for Approval buttons
   const currentUserId = currentUser?.EmployeeID || currentUser?.id;
   const isHREmployee = [1, 10, 21].includes(parseInt(req.Employee?.PositionID, 10));
   const isDirectReport = req.Employee?.SupervisorID === currentUserId;
@@ -120,7 +114,6 @@ function RequestRow({ req, onAction, onEdit, onOverrideClick, isSupervisor, isHR
       <td>
         <div style={{ display: 'flex', gap: 6 }}>
           
-          {/* ── UPDATED: Now shows for HR Manager AND Supervisor if there is a document ── */}
           {(isHRManager || isSupervisor) && docPath && (
             <button 
               className="btn btn-ghost btn-sm" 
@@ -145,18 +138,17 @@ function RequestRow({ req, onAction, onEdit, onOverrideClick, isSupervisor, isHR
     </tr>
   );
 }
+
 // ─── UI COMPONENTS ───────────────────────────────────────────────────────────
 function BalanceCard({ balance, loading }) {
   if (loading) return <SkeletonCard />;
   const name = balance.leaveTypeName || balance.LeaveTypeName || balance.LeaveType?.LeaveTypeName || 'Leave';
   
-  // ── STRICT BALANCE MATH: ONLY DEDUCTS ON APPROVAL (USED DAYS) ──
   const used = Number(balance.usedDays ?? balance.UsedDays ?? 0);
   const entitled = Number(balance.entitledDays ?? balance.EntitledDays ?? 0);
   const carryOver = Number(balance.carryOverDays ?? balance.CarryOverDays ?? 0);
   const adjusted = Number(balance.adjustedDays ?? balance.AdjustedDays ?? 0);
   
-  // Pending Days are entirely omitted from calculations
   const remaining = Math.max(0, entitled + carryOver + adjusted - used);
   const maxDays = entitled + carryOver + adjusted;
   const pct = maxDays > 0 ? Math.round((remaining / maxDays) * 100) : 0;
@@ -181,20 +173,17 @@ function BalanceCard({ balance, loading }) {
 
 // ─── MODALS & FORMS ──────────────────────────────────────────────────────────
 function SubmitLeaveForm({ leaveTypes, onSubmit, loading }) {
-
 const [form, setForm] = useState({ LeaveTypeID: '', startDate: '', endDate: '', reason: '', isHalfDay: false, documentReference: null });
 
- // Inside SubmitLeaveForm component
 const handle = () => {
   if (!form.LeaveTypeID || !form.startDate || !form.endDate) {
     return toast.error("Please fill all required fields");
   }
 
   const data = new FormData();
-
-  data.append('leaveTypeId', form.LeaveTypeID);   // ✅ FIXED
-  data.append('startDate', form.startDate);       // ✅ FIXED
-  data.append('endDate', form.endDate);           // ✅ FIXED
+  data.append('leaveTypeId', form.LeaveTypeID);
+  data.append('startDate', form.startDate);
+  data.append('endDate', form.endDate);
   data.append('reason', form.reason || '');
   data.append('isHalfDay', form.isHalfDay);
 
@@ -240,7 +229,6 @@ const handle = () => {
   );
 }
 
-// ── RESTORED: EDIT FORM FOR LV-017 ──
 function EditLeaveForm({ req, onSubmit, loading }) {
   const [form, setForm] = useState({ 
     startDate: req.StartDate ? req.StartDate.split('T')[0] : '', 
@@ -277,6 +265,7 @@ function EditLeaveForm({ req, onSubmit, loading }) {
   );
 }
 
+// ── RESTORED: DELEGATION PANEL FOR SUPERVISORS ──
 function DelegationPanel({ onDelegate, employees }) {
   const [delegateTo, setDelegateTo] = useState('');
   const [until, setUntil] = useState('');
@@ -314,20 +303,14 @@ function DelegationPanel({ onDelegate, employees }) {
   );
 }
 
-// ─── UPGRADED ABSENCE CONFIGURATOR ──────────────────────────────────────────
 function LeaveTypeManager({ types, onAdd }) {
   const [newType, setNewType] = useState({ 
-    name: '', 
-    code: '', 
-    defaultDays: 21,
-    isPaid: true,
-    requiresDocument: false,
-    requiresApproval: true
+    name: '', code: '', defaultDays: 21,
+    isPaid: true, requiresDocument: false, requiresApproval: true
   });
   
   const handleAdd = () => {
     if (!newType.name) return toast.error("Absence type name is required.");
-    
     onAdd({
       LeaveTypeName: newType.name,
       LeaveTypeCode: newType.name.substring(0, 3).toUpperCase(),
@@ -418,10 +401,7 @@ function HolidayManager({ holidays, onAdd }) {
 
 function AssignEntitlementModal({ employees, leaveTypes, onConfirm, onClose, loading }) {
   const [form, setForm] = useState({ 
-    EmployeeID: '', 
-    LeaveTypeID: '', 
-    Year: new Date().getFullYear(),
-    CustomDays: '' 
+    EmployeeID: '', LeaveTypeID: '', Year: new Date().getFullYear(), CustomDays: '' 
   });
 
   return (
@@ -451,14 +431,7 @@ function AssignEntitlementModal({ employees, leaveTypes, onConfirm, onClose, loa
         </div>
         <div className="form-group w-full">
           <label className="form-label">Custom Days (Optional)</label>
-          <input 
-            className="form-input" 
-            type="number" 
-            step="0.5" 
-            placeholder="e.g. 10.5" 
-            value={form.CustomDays} 
-            onChange={e => setForm({...form, CustomDays: e.target.value})} 
-          />
+          <input className="form-input" type="number" step="0.5" placeholder="e.g. 10.5" value={form.CustomDays} onChange={e => setForm({...form, CustomDays: e.target.value})} />
         </div>
       </div>
       <p className="text-muted small mb-4" style={{marginTop: '-10px', fontSize: '0.75rem'}}>
@@ -467,9 +440,7 @@ function AssignEntitlementModal({ employees, leaveTypes, onConfirm, onClose, loa
 
       <div className="d-flex gap-2 justify-content-end">
         <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-        <button className="btn btn-primary" disabled={loading || !form.EmployeeID} onClick={() => onConfirm(form)}>
-          Assign Entitlements
-        </button>
+        <button className="btn btn-primary" disabled={loading || !form.EmployeeID} onClick={() => onConfirm(form)}>Assign Entitlements</button>
       </div>
     </InlineModal>
   );
@@ -500,15 +471,12 @@ function ManualAdjustmentModal({ employees, leaveTypes, onConfirm, onClose, load
       </div>
       <div className="d-flex gap-2 mt-4 justify-content-end">
         <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-        <button className="btn btn-primary" disabled={loading} onClick={() => onConfirm(form)}>
-          {loading ? <InlineSpinner /> : 'Update Balance'}
-        </button>
+        <button className="btn btn-primary" disabled={loading} onClick={() => onConfirm(form)}>{loading ? <InlineSpinner /> : 'Update Balance'}</button>
       </div>
     </InlineModal>
   );
 }
 
-// ─── ALIGNED TO BACKEND: ROLES & PERMISSIONS MANAGER ─────────────────────────
 function RolePermissionManager({ employees, onUpdate }) {
   const [form, setForm] = useState({ employeeId: '', positionId: '' });
   return (
@@ -555,7 +523,6 @@ function RolePermissionManager({ employees, onUpdate }) {
   );
 }
 
-// ─── ALIGNED TO BACKEND: LEAVE POLICY (YEAR RULES) MANAGER ────────────────────
 function LeavePolicyManager({ leaveTypes, onSave }) {
   const [policy, setPolicy] = useState({ LeaveTypeID: '', MinTenureMonths: 0, NoticePeriodDays: 0 });
   return (
@@ -593,16 +560,19 @@ export default function LeavePage() {
   const rawRole = String(user?.role || user?.Role || '').toUpperCase();
   const rawTitle = String(user?.position || user?.Position?.PositionTitle || '').toUpperCase();
 
-  // 1. HR Manager (Strictly ID 1 or exact string fallback)
+  // 1. HR Manager 
   const isHRManager = posId === 1 || rawTitle === 'HR MANAGER';
 
-  // 2. Basic HR (Strictly ID 10 or 21, or generic HR text, excluding HR Manager)
+  // 2. Basic HR 
   const isBasicHR = !isHRManager && (posId === 10 || posId === 21 || rawRole === 'HR' || rawTitle === 'HR SPECIALIST' || rawTitle === 'HR-GEN');
 
-  // 3. Supervisor (Strictly ID 2, 8, 9, or explicit text, excluding HR personnel)
+  // 3. Supervisor (FIXED: Broadened logic to guarantee supervisors are recognized)
   const isSupervisor = !isHRManager && !isBasicHR && (
     posId === 2 || posId === 8 || posId === 9 || 
-    rawRole === 'MANAGER' || rawTitle.includes('MANAGER') || rawTitle.includes('PROFESSOR') || rawTitle.includes('HEAD') || rawTitle.includes('DEAN')
+    rawRole.includes('MANAGER') || rawRole.includes('SUPERVISOR') || rawRole.includes('LEAD') ||
+    rawTitle.includes('MANAGER') || rawTitle.includes('SUPERVISOR') || rawTitle.includes('LEAD') || 
+    rawTitle.includes('PROFESSOR') || rawTitle.includes('HEAD') || rawTitle.includes('DEAN') ||
+    user?.isSupervisor === true || user?.IsSupervisor === true
   );
   
   // ── HR Manager & Supervisors only for Inbox/Company Data ──
@@ -625,7 +595,7 @@ export default function LeavePage() {
   const [historyFilter, setHistoryFilter] = useState('');
   const [allFilter, setAllFilter] = useState('');
   const [overrideReq, setOverrideReq] = useState(null); 
-  const [editReq, setEditReq] = useState(null); // Used for editing a request
+  const [editReq, setEditReq] = useState(null); 
   const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -633,7 +603,7 @@ export default function LeavePage() {
   // States for Settings Rules
   const [globalEntitlementType, setGlobalEntitlementType] = useState('');
   const [globalEntitlementDays, setGlobalEntitlementDays] = useState(21);
-const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
+  const [selectedIds, setSelectedIds] = useState([]); 
 
   const toggleSelect = (id) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -643,6 +613,7 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
     if (selectedIds.length === allRequests.length) setSelectedIds([]);
     else setSelectedIds(allRequests.map(r => r.LeaveRequestID || r.id));
   };
+  
   const loadData = useCallback(() => {
     if (!user || (!user.EmployeeID && !user.id)) return;
     setLoadBal(true); setLoadReq(true);
@@ -652,8 +623,8 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
     if (leaveAPI.getTypes) leaveAPI.getTypes().then(r => setTypes(toArr(r)));
     if ((isHRManager || isBasicHR) && leaveAPI.listHolidays) leaveAPI.listHolidays().then(r => setHolidays(toArr(r)));
 
-    // Fetch full employee list for both HR and HR Manager (for Modals)
-    if ((isHRManager || isBasicHR) && employeeAPI?.list) {
+    // FIX: Supervisors now fetch employee lists so they can use the Delegation panel
+    if ((isManagement || isBasicHR) && employeeAPI?.list) {
       employeeAPI.list({ limit: 500 }).then(r => {
         const emps = toArr(r).map(e => ({
           id: e.EmployeeID || e.id,
@@ -700,12 +671,12 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
       loadData();
     } catch (err) { toast.error(getErrMsg(err)); }
   };
+  
  const handleBulkAction = async (decision) => {
   if (!selectedIds.length) return;
   const loadingToast = toast.loading(`Processing ${selectedIds.length} requests...`);
   
   try {
-    // USE THE NEW BULK ENDPOINT
     await leaveAPI.bulkProcess({ 
       requestIds: selectedIds, 
       decision: decision, 
@@ -723,11 +694,10 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
   const handleEditSubmit = async (id, updatedData) => {
     try {
       setSubmitting(true);
-      // Calls updateLeaveRequest mapped in backend (LV-017)
       if(leaveAPI.updateRequest) {
         await leaveAPI.updateRequest(id, updatedData);
       } else {
-        throw new Error("Update endpoint not wired to leaveAPI. Contact admin to expose LV-017.");
+        throw new Error("Update endpoint not wired to leaveAPI.");
       }
       toast.success("Leave Request Updated!");
       setEditReq(null);
@@ -756,8 +726,8 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
   const handlePayrollSync = () => leaveAPI.syncPayroll({}).then(() => toast.success("Payroll successfully synced"));
 
   const TABS = [
-    { id: 'dashboard', label: 'Dashboard',    icon: BarChart2 },
-    { id: 'history',   label: 'My History',   icon: Clock },
+    { id: 'dashboard', label: 'Dashboard',   icon: BarChart2 },
+    { id: 'history',   label: 'My History',  icon: Clock },
     ...(isManagement ? [ { id: 'all', label: isHRManager ? 'Company Data' : 'Team Inbox', icon: Users } ] : []),
     ...(isHRManager || isBasicHR ? [ { id: 'settings', label: 'Settings', icon: Settings } ] : []),
   ];
@@ -847,25 +817,14 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
                  })
                  .catch(err => {
                    const backendMsg = getErrMsg(err);
-                   
-                   // ── TRANSLATE BACKEND ERRORS INTO FRIENDLY UI MESSAGES ──
                    if (backendMsg.includes('Insufficient leave balance')) {
-                     toast.error("Oops! You don't have enough leave balance for these dates.", {
-                       icon: '⚖️'
-                     });
+                     toast.error("Oops! You don't have enough leave balance for these dates.", { icon: '⚖️' });
                    } else if (backendMsg.includes('Notice period')) {
-                     toast.error("Please submit this request a bit earlier to meet the notice period policy.", {
-                       icon: '⏳'
-                     });
+                     toast.error("Please submit this request a bit earlier to meet the notice period policy.", { icon: '⏳' });
                    } else if (backendMsg.includes('Tenure')) {
-                     toast.error("You haven't been with us quite long enough to use this specific leave type yet.", {
-                       icon: '🌱'
-                     });
+                     toast.error("You haven't been with us quite long enough to use this specific leave type yet.", { icon: '🌱' });
                    } else {
-                     // Generic fallback if it's an error we didn't specifically catch
-                     toast.error("We couldn't submit your request. Please check your details and try again.", {
-                       icon: '🛑'
-                     });
+                     toast.error("We couldn't submit your request. Please check your details and try again.", { icon: '🛑' });
                    }
                  })
                  .finally(() => {
@@ -903,7 +862,6 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Type</th><th>Period</th><th>Days</th><th>Status</th><th>Actions</th></tr></thead>
-                {/* ── PASS currentUser={user} ── */}
                 <tbody>{myRequests.filter(r => statusMatches(r.Status, historyFilter)).map((req, i) => <RequestRow key={i} req={req} onAction={handleAction} onEdit={setEditReq} isSupervisor={false} isHRManager={false} currentUser={user} />)}</tbody>
               </table>
             </div>
@@ -913,6 +871,21 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
         {/* ── COMPANY DATA / TEAM INBOX ── */}
         {tab === 'all' && isManagement && (
   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+    {/* RESTORED: Delegation Panel displays directly inside the Team Inbox for Supervisors */}
+    {canDelegate && (
+      <DelegationPanel 
+        employees={employeeDropdownList} 
+        onDelegate={(id, data) => {
+          if(leaveAPI.delegateApproval) {
+            leaveAPI.delegateApproval(data).then(() => { toast.success("Delegation active!"); loadData(); }).catch(err => toast.error(getErrMsg(err)));
+          } else {
+            toast.success("Delegation data sent! (Hook up API)");
+          }
+        }} 
+      />
+    )}
+
     {/* Bulk Bar */}
     {isHRManager && selectedIds.length > 0 && (
       <div className="card p-3" style={{ background: 'var(--blue)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -934,7 +907,6 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
         <table>
           <thead>
             <tr>
-              {/* Correctly aligned checkbox header */}
               {isHRManager && <th style={{ width: 40 }}>
                 <button className="btn btn-ghost p-1" onClick={selectAllVisible}>
                   {selectedIds.length === allRequests.length && allRequests.length > 0 ? <CheckSquare size={16} /> : <Square size={16} />}
@@ -954,7 +926,7 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
     .filter(r => statusMatches(r.Status, allFilter))
     .map((req, i) => (
       <RequestRow 
-        key={req.LeaveRequestID || i} // 👈 Fixed: Use req.LeaveRequestID or the index i
+        key={req.LeaveRequestID || i} 
         req={req} 
         onAction={handleAction} 
         onOverrideClick={setOverrideReq} 
@@ -989,13 +961,11 @@ const [selectedIds, setSelectedIds] = useState([]); // 👈 Add this here
                   </button>
                 </div>
                 
-                {/* ── NO ASSUMPTIONS: LEAVE POLICY (YEAR RULES) MAPPED TO BACKEND ── */}
                 <LeavePolicyManager leaveTypes={leaveTypes} onSave={(data) => {
                    if(leaveAPI.createPolicy) { leaveAPI.createPolicy(data).then(() => toast.success("Leave policy rules updated")); }
                    else { toast.success("Leave Policy defined! (Hook up leaveAPI.createPolicy to backend)"); }
                 }} />
                 
-                {/* ── NO ASSUMPTIONS: DB ROLES & PERMISSIONS MANAGER ── */}
                 <RolePermissionManager employees={employeeDropdownList} onUpdate={(data) => {
                    if(employeeAPI.updateRole) { employeeAPI.updateRole(data).then(() => toast.success("Role updated successfully!")); }
                    else { toast.success("Role set! (Hook up employeeAPI.updateRole to backend)"); }

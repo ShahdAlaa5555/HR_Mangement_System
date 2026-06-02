@@ -13,7 +13,7 @@ function resolveRole(positionTitle = '') {
   if (t.includes('admin') || t.includes('system')) return 'Admin';
   if (t.includes('hr') || t.includes('human resource')) return 'HR';
   if (t.includes('payroll') || t.includes('compensation')) return 'Payroll';
-  if (t.includes('manager') || t.includes('director') || t.includes('head') || t.includes('dean') || t.includes('supervisor')) return 'Manager';
+  if (t.includes('manager') || t.includes('director') || t.includes('head') || t.includes('professor') || t.includes('dean') || t.includes('supervisor')) return 'Manager';
   return 'Employee';
 }
 

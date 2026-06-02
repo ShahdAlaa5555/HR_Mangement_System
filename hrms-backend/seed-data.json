@@ -1,0 +1,42 @@
+{
+  "workLocations": [
+    { "LocationCode": "HQ-CAIRO", "LocationName": "Cairo Headquarters", "City": "Cairo", "Country": "Egypt" }
+  ],
+  "payGrades": [
+    { "GradeCode": "PG-ADMIN", "GradeName": "Administration", "MinSalary": 20000, "MaxSalary": 60000, "CurrencyCode": "EGP" },
+    { "GradeCode": "PG-HR", "GradeName": "Human Resources", "MinSalary": 12000, "MaxSalary": 35000, "CurrencyCode": "EGP" },
+    { "GradeCode": "PG-EMP", "GradeName": "Standard Employee", "MinSalary": 6000, "MaxSalary": 20000, "CurrencyCode": "EGP" }
+  ],
+  "positions": [
+    { "PositionCode": "POS-HRMGR", "PositionTitle": "HR Manager", "PayGradeCode": "PG-HR" },
+    { "PositionCode": "POS-HRSPEC", "PositionTitle": "HR Specialist", "PayGradeCode": "PG-HR" },
+    { "PositionCode": "POS-SUPV", "PositionTitle": "Team Supervisor", "PayGradeCode": "PG-ADMIN" },
+    { "PositionCode": "POS-STAFF", "PositionTitle": "Staff Member", "PayGradeCode": "PG-EMP" }
+  ],
+  "departments": [
+    { "DepartmentCode": "DEPT-HR", "DepartmentName": "Human Resources" },
+    { "DepartmentCode": "DEPT-OPS", "DepartmentName": "Operations" }
+  ],
+  "employees": [
+    {
+      "EmployeeCode": "EMP-001",
+      "FirstName": "Nadia",
+      "LastName": "Saleh",
+      "Email": "hrmanager@hrsystem.com",
+      "PositionCode": "POS-HRMGR",
+      "DepartmentCode": "DEPT-HR",
+      "BaseSalary": 35000,
+      "PasswordRaw": "HrMgr@123"
+    },
+    {
+      "EmployeeCode": "EMP-002",
+      "FirstName": "Hana",
+      "LastName": "Ibrahim",
+      "Email": "hr@hrsystem.com",
+      "PositionCode": "POS-HRSPEC",
+      "DepartmentCode": "DEPT-HR",
+      "BaseSalary": 18000,
+      "PasswordRaw": "Hr@12345"
+    }
+  ]
+}

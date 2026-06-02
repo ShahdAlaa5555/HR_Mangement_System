@@ -68,7 +68,7 @@ export default function App() {
   // ─── GLOBAL THEME INITIALIZATION ───
   // This runs once when the app boots up to ensure the saved theme is applied everywhere instantly!
   useEffect(() => {
-    const savedTheme = localStorage.getItem('app-theme') || 'dark';
+    const savedTheme = localStorage.getItem('app-theme') || 'light';
     const root = document.documentElement;
 
     if (savedTheme === 'auto') {

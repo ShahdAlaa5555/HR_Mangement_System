@@ -346,14 +346,17 @@ describe('Payroll Service', () => {
     // is caught by the try/catch and logged as a ProcessingError exception.
     // Therefore processedCount is always 0 until the code declaration order
     // is corrected. This is a defect identified by the test suite.
-    test('[KNOWN BUG] processedCount is 0 due to grossEarnings ReferenceError in loop', async () => {
+  // ── Fixed Bug ──────────────────────────────────────────────
+    // This test verifies that the grossIncome declaration order is correct
+    // and that employees are successfully processed without throwing a ReferenceError.
+    test('should successfully process payroll run and increment processedCount', async () => {
       const result = await processPayrollRun(1, {}, 1);
 
-      // Documents actual (broken) behaviour — processedCount should be 1
-      // once the grossEarnings declaration order is fixed in the source code
-      expect(result.processedCount).toBe(0);
-      // The exception is created due to the caught ReferenceError
-      expect(prisma.payrollException.create).toHaveBeenCalled();
+      // 1. The run should now successfully process the 1 mocked employee
+      expect(result.processedCount).toBe(1);
+      
+      // 2. No exceptions should be thrown or logged
+      expect(prisma.payrollException.create).not.toHaveBeenCalled();
     });
   });
 
