@@ -1,0 +1,8 @@
+﻿hrms-frontend/node_modules/
+hrms-backend/node_modules/
+hrms-frontend/.env
+hrms-backend/.env
+hrms-frontend/build/
+logs/
+uploads/
+*.log
