@@ -56,8 +56,14 @@ async function listEmployees(query) {
         EmployeeID: true,
         EmployeeCode: true,
         FullName: true,
+        FirstName: true,     // 👈 Add this
+        LastName: true,      // 👈 Add this
         Email: true,
         Phone: true,
+        Gender: true,        // 👈 Add this
+  DateOfBirth: true,   // 👈 Add this
+  Nationality: true,   // 👈 Add this
+  MaritalStatus: true,
         PhotoURL: true,
         EmploymentType: true,
         CurrentStatus: true,
@@ -188,14 +194,22 @@ async function createEmployee(data, createdByAdminId) {
       NewValue: JSON.stringify({ EmployeeCode: employee.EmployeeCode, FullName: employee.FullName }),
     },
   });
-
+// Auto-initialize leave balances for new employee
+const { initializeLeaveBalances } = require('../leave/services/leave.service');
+const currentYear = new Date().getFullYear();
+try {
+  await initializeLeaveBalances(employee.EmployeeID, currentYear);
+} catch (err) {
+  console.error(`Leave balance init failed for ${employee.EmployeeCode}:`, err.message);
+}
   return employee;
 }
 
 async function updateEmployee(employeeId, data, updatedById, ipAddress) {
+  console.log('🔴 RAW req.body RECEIVED IN SERVICE:', JSON.stringify(data));
   const employee = await prisma.employee.findUnique({ where: { EmployeeID: employeeId } });
   if (!employee) throw new AppError('Employee not found.', 404, 'NOT_FOUND');
-
+console.log("DATA RECEIVED:", data);
   const updatedData = { ...data };
   if (data.FirstName || data.LastName) {
     updatedData.FullName = `${data.FirstName || employee.FirstName} ${data.LastName || employee.LastName}`;
@@ -213,8 +227,9 @@ async function updateEmployee(employeeId, data, updatedById, ipAddress) {
       NewValue: String(data[k]),
       IPAddress: ipAddress,
     }));
-
+console.log('🟣 updatedData GOING INTO PRISMA:', JSON.stringify(updatedData));
   const [updated] = await prisma.$transaction([
+
     prisma.employee.update({
       where: { EmployeeID: employeeId },
       data: updatedData,
@@ -854,6 +869,6 @@ async function updateEmergencyContact(employeeId, contactId, data) {
 // ⚠️ IMPORTANT: ADD THESE TO YOUR module.exports AT THE BOTTOM!
 // assignEmployeeRole, getFieldVisibility, updateFieldVisibility
 module.exports = {
-  listEmployees,updateProfilePhoto,updateEmergencyContact,updateFieldVisibility,updateFieldVisibility, assignEmployeeRole,getEmployeeForPdf,getProfileCompleteness, getTeamPendingChangeRequests, sendCompletenessReminder, getDocuments, addDocumentRecord, deleteDocument,getAllPendingChangeRequests,
+  listEmployees,updateProfilePhoto,updateEmergencyContact,getFieldVisibility,updateFieldVisibility, assignEmployeeRole,getEmployeeForPdf,getProfileCompleteness, getTeamPendingChangeRequests, sendCompletenessReminder, getDocuments, addDocumentRecord, deleteDocument,getAllPendingChangeRequests,
   getEmployeeById,addEmployeeNote,getEmployeeNotes,getEmploymentTimeline,getMyTeam,getAllPendingChangeRequests, getEmployeeProfile, createEmployee, updateEmployee, getEmergencyContacts, addEmergencyContact, deleteEmergencyContact, getSkills, addSkill, deleteSkill, terminateEmployee, reactivateEmployee, submitChangeRequest, listChangeRequests, reviewChangeRequest, getAuditLog, getOrgChart, listDepartments, createDepartment, updateDepartment, listPositions, createPosition, getSalaryHistory, createSalaryRecord, listWorkLocations, getMyNotifications, markNotificationsRead,
 };

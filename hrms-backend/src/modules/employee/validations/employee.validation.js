@@ -49,6 +49,7 @@ const createEmployeeSchema = Joi.object({
 const updateEmployeeSchema = Joi.object({
   FirstName: Joi.string().max(80),
   LastName: Joi.string().max(80),
+  Email: Joi.string().email().max(150),  // ← ADD THIS
   DateOfBirth: Joi.date().iso().max('now'),
   Gender: Joi.string().valid(...Object.values(GENDER)),
   Nationality: Joi.string().max(80),
