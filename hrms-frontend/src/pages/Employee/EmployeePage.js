@@ -138,6 +138,12 @@ function EmployeeForm({ data, onChange, departments, positions, locations, super
 
   const select = (k, label, opts, req = false) => {
     const disabled = !canEdit(k);
+     console.log('🔴 EMAIL FIELD RENDER:', { 
+            value: data[k], 
+            disabled, 
+            canEdit: canEdit(k),
+            fieldConfig: fieldConfig?.Email,
+            userRole  });
     return (
       <div className="form-group">
         <label className={`form-label ${req ? 'required' : ''}`}>{label}</label>
@@ -390,6 +396,7 @@ export default function EmployeePage() {
   const openEdit = (emp) => {
     setFormData({
       ...emp,
+       Email: emp.Email || '',
       StartDate: emp.StartDate ? emp.StartDate.split('T')[0] : '',
       DateOfBirth: emp.DateOfBirth ? emp.DateOfBirth.split('T')[0] : '',
       DepartmentID: emp.Department?.DepartmentID || emp.DepartmentID,
@@ -397,6 +404,8 @@ export default function EmployeePage() {
       WorkLocationID: emp.WorkLocation?.WorkLocationID || emp.WorkLocationID,
       SupervisorID: emp.Supervisor?.EmployeeID || emp.SupervisorID || '',
     });
+    setFormErrors({});
+     console.log('🟡 FORM DATA SET WITH EMAIL:', emp.Email || ''); // ← what was set
     setFormErrors({});
     setEditModal(emp);
   };
@@ -418,6 +427,11 @@ export default function EmployeePage() {
   };
 
   const handleEdit = async () => {
+    console.log('🟠 FORDATA AT SAVE TIME:', {
+        Email: formData.Email,
+        FirstName: formData.FirstName,
+        allKeys: Object.keys(formData)
+    });
     setSaving(true);
     try {
       const payload = { ...formData };
@@ -425,9 +439,11 @@ export default function EmployeePage() {
       if (payload.SupervisorID) payload.SupervisorID = parseInt(payload.SupervisorID, 10);
       else payload.SupervisorID = null;
 
-      delete payload.EmployeeCode; delete payload.Email; delete payload.password;
+     delete payload.password;
       delete payload.Department; delete payload.Position; delete payload.WorkLocation; delete payload.Supervisor;
 
+    console.log('Email in payload:', formData.Email); // ← add this
+    setSaving(true);
       await employeeAPI.update(editModal.EmployeeID || editModal.id, payload);
       toast.success('Employee updated successfully');
       setEditModal(null);

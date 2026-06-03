@@ -196,27 +196,17 @@ export default function PayrollPage() {
   const handleRunAction = async (runId, action) => {
     try {
       const id = parseInt(runId, 10);
-      let result;
-
-      if (action === 'process') result = await payrollAPI.processRun(id, {});
-      else if (action === 'approve') await payrollAPI.approveRun(id, {});
-      else if (action === 'finalize') await payrollAPI.finalizeRun(id, {});
-      else if (action === 'payslips') await payrollAPI.generatePayslips(id, {});
-      else if (action === 'bankfile') {
+      if (action === 'process')  await payrollAPI.processRun(id, {});
+      if (action === 'approve')  await payrollAPI.approveRun(id, {});
+      if (action === 'finalize') await payrollAPI.finalizeRun(id, {});
+      if (action === 'payslips') await payrollAPI.generatePayslips(id, {});
+      if (action === 'bankfile') {
         await payrollAPI.generateBankFile(id, { FileFormat: 'CSV' });
         toast.success('Downloading...');
         return; 
       }
-
-      // Check if the process returned exceptions
-      const responseData = result?.data || result;
-      if (action === 'process' && responseData?.exceptionsCount > 0) {
-        toast.error(`Payroll processed with ${responseData.exceptionsCount} exceptions. Please check the Exceptions tab.`, { duration: 6000 });
-      } else {
-        toast.success(`Run ${action}d successfully`);
-      }
-      
-      load(); // Reloads exceptions and run status immediately
+      toast.success(`Run ${action}d successfully`);
+      load(); // Reloads exceptions immediately
     } catch (err) {
       toast.error(err.response?.data?.error?.message || `Action ${action} failed`);
     }
@@ -269,23 +259,8 @@ export default function PayrollPage() {
       setCreateRunModal(false);
       load();
     } catch (err) {
-      console.log("Full error:", err);
-      console.log("Error data:", err.response?.data);
-
-      // SAFE ERROR EXTRACTION: Handles objects, strings, and missing data safely
-      let rawError = err.response?.data?.message || err.response?.data?.error || err.message || "";
-      if (typeof rawError === 'object' && rawError !== null) {
-          rawError = rawError.message || JSON.stringify(rawError);
-      }
-      const safeErrorMessage = String(rawError).toLowerCase();
-
-      // Show a smart error message safely
-      if (safeErrorMessage.includes('already exists') || safeErrorMessage.includes('duplicate')) {
-        toast.error("Another HR user has already generated the payroll for this month. Check your active runs to view or edit it.", { duration: 5000 });
-      } else {
-        toast.error(typeof rawError === 'string' && rawError.length < 100 ? rawError : "Failed to create payroll run.");
-      }
-    }finally { setSaving(false); }
+      toast.error('Failed to create run');
+    } finally { setSaving(false); }
   };
 
   const handleResolveException = async (id) => {
