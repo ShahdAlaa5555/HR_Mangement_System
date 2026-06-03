@@ -269,8 +269,23 @@ export default function PayrollPage() {
       setCreateRunModal(false);
       load();
     } catch (err) {
-      toast.error('Failed to create run');
-    } finally { setSaving(false); }
+      console.log("Full error:", err);
+      console.log("Error data:", err.response?.data);
+
+      // SAFE ERROR EXTRACTION: Handles objects, strings, and missing data safely
+      let rawError = err.response?.data?.message || err.response?.data?.error || err.message || "";
+      if (typeof rawError === 'object' && rawError !== null) {
+          rawError = rawError.message || JSON.stringify(rawError);
+      }
+      const safeErrorMessage = String(rawError).toLowerCase();
+
+      // Show a smart error message safely
+      if (safeErrorMessage.includes('already exists') || safeErrorMessage.includes('duplicate')) {
+        toast.error("Another HR user has already generated the payroll for this month. Check your active runs to view or edit it.", { duration: 5000 });
+      } else {
+        toast.error(typeof rawError === 'string' && rawError.length < 100 ? rawError : "Failed to create payroll run.");
+      }
+    }finally { setSaving(false); }
   };
 
   const handleResolveException = async (id) => {
