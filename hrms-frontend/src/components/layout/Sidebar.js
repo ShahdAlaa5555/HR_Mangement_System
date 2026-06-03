@@ -13,7 +13,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   const { user, logout } = useAuth();
   const navigate  = useNavigate();
   const location  = useLocation();
-  const [openGroup, setOpenGroup] = useState('attendance');
+  const [openGroup, setOpenGroup] = useState('null');
 
   // --- UPDATED ROLE CHECKING ---
   const userRole = user?.role || user?.Role;

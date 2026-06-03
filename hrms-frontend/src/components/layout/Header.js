@@ -64,9 +64,8 @@ export default function Header() {
   const initial = displayName[0]?.toUpperCase() || 'U';
 
   return (
-    <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', height: '64px', borderBottom: '1px solid #eee', background: '#fff' }}>
-      <h1 className="header-title" style={{ fontSize: '1.25rem', fontWeight: 600, margin: 0 }}>Leave Management</h1>
-
+    <header className="header" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '0 20px', height: '64px', borderBottom: '1px solid #eee', background: '#fff' }}>
+      
       <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
         
         {/* ── NOTIFICATION POPUP ── */}
