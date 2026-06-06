@@ -80,7 +80,186 @@ const MODULE_PATHS = {
 //   prismaModels — Prisma model names that prove the entity exists in the schema
 //   constants    — constant names that prove an enum/status is implemented
 const CLASS_MAP = {
+  HRManager: "path/to/HRManager",
+  DepartmentManager: "path/to/DepartmentManager",
+  PayrollManager: "path/to/PayrollManager",
+  SystemAdmin: "path/to/SystemAdmin",
+  Auditor: "path/to/Auditor",
+  ExecutiveManager: "path/to/ExecutiveManager",
 
+  Role: "path/to/Role",
+  Permission: "path/to/Permission",
+  AccessPolicy: "path/to/AccessPolicy",
+  Session: "path/to/Session",
+  AuthenticationService: "path/to/AuthenticationService",
+
+  BiometricLog: "path/to/BiometricLog",
+  LatenessRule: "path/to/LatenessRule",
+
+  LeaveType: "path/to/LeaveType",
+  LeaveAccrual: "path/to/LeaveAccrual",
+  LeaveAttachment: "path/to/LeaveAttachment",
+
+  ApprovalWorkflow: "path/to/ApprovalWorkflow",
+  WorkflowStage: "path/to/WorkflowStage",
+  WorkflowTransition: "path/to/WorkflowTransition",
+  ApprovalMatrix: "path/to/ApprovalMatrix",
+  EscalationRule: "path/to/EscalationRule",
+  WorkflowHistory: "path/to/WorkflowHistory",
+  WorkflowService: "path/to/WorkflowService",
+
+  Notification: "path/to/Notification",
+  NotificationTemplate: "path/to/NotificationTemplate",
+  EventTrigger: "path/to/EventTrigger",
+  NotificationService: "path/to/NotificationService",
+
+  AnalyticsDashboard: "path/to/AnalyticsDashboard",
+  KPIReport: "path/to/KPIReport",
+  WorkforceMetric: "path/to/WorkforceMetric",
+  PayrollAnalytics: "path/to/PayrollAnalytics",
+  AttendanceAnalytics: "path/to/AttendanceAnalytics",
+  LeaveAnalytics: "path/to/LeaveAnalytics",
+  PredictiveAlert: "path/to/PredictiveAlert",
+  ReportingService: "path/to/ReportingService",
+  AnalyticsService: "path/to/AnalyticsService",
+  // ── Additional PayrollManagement entities ───────────────────────────────────
+PayrollRun: {
+  pkg: 'PayrollManagement',
+  serviceFile: 'src/modules/payroll/services/payroll.service.js',
+  prismaModels: ['payrollRun'],
+  methods: {},
+},
+
+PayrollEntry: {
+  pkg: 'PayrollManagement',
+  serviceFile: 'src/modules/payroll/services/payroll.service.js',
+  prismaModels: ['payrollEntry'],
+  methods: {},
+},
+
+PayrollEntryLine: {
+  pkg: 'PayrollManagement',
+  serviceFile: 'src/modules/payroll/services/payroll.service.js',
+  prismaModels: ['payrollEntryLine'],
+  methods: {},
+},
+
+PayrollPolicy: {
+  pkg: 'PayrollManagement',
+  serviceFile: 'src/modules/payroll/services/payroll.service.js',
+  prismaModels: ['payrollPolicy'],
+  methods: {},
+},
+
+BankFile: {
+  pkg: 'PayrollManagement',
+  serviceFile: 'src/modules/payroll/services/payroll.service.js',
+  prismaModels: ['bankFile'],
+  methods: {},
+},
+
+EmployeeSalary: {
+  pkg: 'PayrollManagement',
+  serviceFile: 'src/modules/payroll/services/payroll.service.js',
+  prismaModels: ['employeeSalary'],
+  methods: {},
+},
+
+PayGrade: {
+  pkg: 'PayrollManagement',
+  serviceFile: 'src/modules/payroll/services/payroll.service.js',
+  prismaModels: ['payGrade'],
+  methods: {},
+},
+
+// ── Additional EmployeeManagement entities ──────────────────────────────────
+EmployeeBankAccount: {
+  pkg: 'EmployeeManagement',
+  serviceFile: 'src/modules/employee/services/employee.service.js',
+  prismaModels: ['employeeBankAccount'],
+  methods: {},
+},
+
+// ── Additional TimeManagement entities ─────────────────────────────────────
+HolidayCalendar: {
+  pkg: 'TimeManagement',
+  serviceFile: 'src/modules/attendance/services/attendance.service.js',
+  prismaModels: ['holidayCalendar'],
+  methods: {},
+},
+// ── LeaveManagement additional entities ─────────────────────────────────────
+LeaveType: {
+  pkg: 'LeaveManagement',
+  serviceFile: 'src/modules/leave/services/leave.service.js',
+  prismaModels: ['leaveType'],
+  methods: {},
+},
+
+LeaveAccrual: {
+  pkg: 'LeaveManagement',
+  serviceFile: 'src/modules/leave/services/leave.service.js',
+  prismaModels: ['leaveAccrualLog'],
+  methods: {},
+},
+
+LeaveAttachment: {
+  pkg: 'LeaveManagement',
+  serviceFile: 'src/modules/leave/services/leave.service.js',
+  prismaModels: ['leaveRequest'],
+  methods: {},
+},
+
+// ── TimeManagement additional entities ──────────────────────────────────────
+BiometricLog: {
+  pkg: 'TimeManagement',
+  serviceFile: 'src/modules/attendance/services/attendance.service.js',
+  prismaModels: ['attendanceRecord'],
+  methods: {
+    sync: ['IsManualEntry', 'BiometricLog', 'sync'],
+  },
+},
+
+LatenessRule: {
+  pkg: 'TimeManagement',
+  serviceFile: 'src/modules/attendance/services/attendance.service.js',
+  prismaModels: ['attendanceRecord'],
+  methods: {
+    evaluate: ['calcLatenessMinutes', 'latenessMinutes'],
+  },
+},
+
+// ── EmployeeManagement role entities ────────────────────────────────────────
+HRManager: {
+  pkg: 'EmployeeManagement',
+  serviceFile: 'src/modules/employee/services/employee.service.js',
+  prismaModels: ['employee'],
+  methods: {
+    overrideLeaveDecision: ['processApproval', 'APPROVED'],
+    bulkProcessRequests:   ['bulkImport', 'bulk'],
+  },
+},
+// ── PayrollManagement additional entity ─────────────────────────────────────
+PayrollAdjustment: {
+  pkg: 'PayrollManagement',
+  serviceFile: 'src/modules/payroll/services/payroll.service.js',
+  prismaModels: ['payrollEntryLine'],
+  methods: {
+    apply:   ['lines.push', 'TotalDeductions'],
+    reverse: ['syncLeaveToPayroll', 'bulkSyncPayroll'],
+  },
+},
+
+// ── EmployeeManagement role entity ──────────────────────────────────────────
+DepartmentManager: {
+  pkg: 'EmployeeManagement',
+  serviceFile: 'src/modules/employee/services/employee.service.js',
+  prismaModels: ['employee'],
+  methods: {
+    approveRequest: ['processApproval', 'APPROVED'],
+    viewTeamReport: ['getEmployeesByDepartment', 'DepartmentID'],
+  },
+},
+// ── PayrollManagement additi
   // ── EmployeeManagement ──────────────────────────────────────────────────────
   Employee: {
     pkg: 'EmployeeManagement',
