@@ -14,7 +14,8 @@ const {
   EMPLOYEE_STATUS,
 } = require('../../../shared/constants');
 const { getPagination, buildPaginationMeta } = require('../../../middleware/validate');
-
+// Auto-initialize leave balances for new employee
+const { initializeLeaveBalances } = require('../../leave/services/leave.service');
 // ─── Employee CRUD ────────────────────────────────────────────────────────────
 
 async function listEmployees(query) {
@@ -194,8 +195,7 @@ async function createEmployee(data, createdByAdminId) {
       NewValue: JSON.stringify({ EmployeeCode: employee.EmployeeCode, FullName: employee.FullName }),
     },
   });
-// Auto-initialize leave balances for new employee
-const { initializeLeaveBalances } = require('../leave/services/leave.service');
+
 const currentYear = new Date().getFullYear();
 try {
   await initializeLeaveBalances(employee.EmployeeID, currentYear);

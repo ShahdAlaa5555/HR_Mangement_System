@@ -608,10 +608,33 @@ async function assignShift(data, assignedById) {
   const employee = await prisma.employee.findUnique({ where: { EmployeeID: data.EmployeeID } });
   if (!employee) throw new AppError('Employee not found.', 404, 'NOT_FOUND');
 
+  if (!employee.IsActive || employee.CurrentStatus === 'Terminated') {
+    throw new AppError('Cannot assign shift to an inactive or terminated employee.', 400, 'INACTIVE_EMPLOYEE');
+  }
   const shift = await prisma.shift.findUnique({ where: { ShiftID: data.ShiftID } });
+  
   if (!shift) throw new AppError('Shift not found.', 404, 'NOT_FOUND');
 
-  // Close previous open shift assignment
+// ADD THESE:
+if (!shift.IsActive) {
+  throw new AppError('Shift is not active.', 400, 'INACTIVE_SHIFT');
+}
+
+if (!data.EffectiveFrom) {
+  throw new AppError('EffectiveFrom date is required.', 400, 'MISSING_DATE');
+}
+
+
+
+  const existing = await prisma.employeeShiftAssignment.findFirst({
+    where: {
+      EmployeeID: data.EmployeeID,
+      ShiftID: data.ShiftID,
+      EffectiveFrom: new Date(data.EffectiveFrom),
+    },
+  });
+  if (existing) throw new AppError('This shift assignment already exists for this employee on this date.', 409, 'DUPLICATE_ASSIGNMENT');
+
   await prisma.employeeShiftAssignment.updateMany({
     where: { EmployeeID: data.EmployeeID, EffectiveTo: null },
     data: { EffectiveTo: new Date(data.EffectiveFrom) },
@@ -628,7 +651,6 @@ async function assignShift(data, assignedById) {
     include: { Shift: true },
   });
 }
-
 // ─── ATTENDANCE SUMMARY (used by Payroll) ─────────────────────────────────────
 
 /**

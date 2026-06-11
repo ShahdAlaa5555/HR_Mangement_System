@@ -5,7 +5,9 @@ jest.mock('../../config/database', () =>
 jest.mock('../../shared/utils/notification.util', () => ({
   notify: jest.fn().mockResolvedValue(true),
 }));
-
+jest.mock('../../modules/leave/services/leave.service', () => ({
+  initializeLeaveBalances: jest.fn().mockResolvedValue({ assignedCount: 1 }),
+}));
 jest.mock('../../middleware/validate', () => ({
   getPagination: jest.fn(() => ({
     page: 1,

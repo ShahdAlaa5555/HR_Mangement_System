@@ -670,10 +670,13 @@ describe('Attendance Service Enterprise Tests', () => {
     it('should assign employee shift', async () => {
       prisma.employee.findUnique.mockResolvedValue({
         EmployeeID: 1,
+          IsActive: true,          // ADD THIS
+    CurrentStatus: 'Active', // ADD THIS
       });
 
       prisma.shift.findUnique.mockResolvedValue({
         ShiftID: 1,
+         IsActive: true,
       });
 
       prisma.employeeShiftAssignment.updateMany.mockResolvedValue(
@@ -723,7 +726,10 @@ describe('Attendance Service Enterprise Tests', () => {
     it('should reject nonexistent shift', async () => {
       prisma.employee.findUnique.mockResolvedValue({
         EmployeeID: 1,
+         IsActive: true,          // ADD THIS
+    CurrentStatus: 'Active', // ADD THIS
       });
+
 
       prisma.shift.findUnique.mockResolvedValue(
         null
@@ -742,6 +748,71 @@ describe('Attendance Service Enterprise Tests', () => {
         'Shift not found.'
       );
     });
+    it('should reject terminated employee', async () => {
+  prisma.employee.findUnique.mockResolvedValue({
+    EmployeeID: 1,
+    IsActive: false,
+    CurrentStatus: 'Terminated',
+  });
+
+  await expect(
+    assignShift(
+      {
+        EmployeeID: 1,
+        ShiftID: 1,
+        EffectiveFrom: '2026-05-13',
+      },
+      99
+    )
+  ).rejects.toThrow(
+    'Cannot assign shift to an inactive or terminated employee.'
+  );
+});
+it('should reject disabled shift', async () => {
+  prisma.employee.findUnique.mockResolvedValue({ EmployeeID: 1, IsActive: true, CurrentStatus: 'Active' });
+  prisma.shift.findUnique.mockResolvedValue({ ShiftID: 1, IsActive: false });
+  await expect(assignShift({ EmployeeID: 1, ShiftID: 1, EffectiveFrom: '2026-05-13' }, 99))
+    .rejects.toThrow('Shift is not active.');
+});
+
+it('should reject null EffectiveFrom', async () => {
+  prisma.employee.findUnique.mockResolvedValue({ EmployeeID: 1, IsActive: true, CurrentStatus: 'Active' });
+  prisma.shift.findUnique.mockResolvedValue({ ShiftID: 1, IsActive: true });
+  await expect(assignShift({ EmployeeID: 1, ShiftID: 1, EffectiveFrom: null }, 99))
+    .rejects.toThrow('EffectiveFrom date is required.');
+});
+
+it('should reject duplicate shift assignment on same date', async () => {
+  prisma.employee.findUnique.mockResolvedValue({
+    EmployeeID: 1,
+    IsActive: true,
+    CurrentStatus: 'Active',
+  });
+
+  prisma.shift.findUnique.mockResolvedValue({
+    ShiftID: 1,
+    IsActive: true,
+  });
+
+  prisma.employeeShiftAssignment.findFirst.mockResolvedValue({
+    AssignmentID: 5,
+    EmployeeID: 1,
+    ShiftID: 1,
+  });
+
+  await expect(
+    assignShift(
+      {
+        EmployeeID: 1,
+        ShiftID: 1,
+        EffectiveFrom: '2026-05-13',
+      },
+      99
+    )
+  ).rejects.toThrow(
+    'This shift assignment already exists for this employee on this date.'
+  );
+});
   });
 
   // ─────────────────────────────

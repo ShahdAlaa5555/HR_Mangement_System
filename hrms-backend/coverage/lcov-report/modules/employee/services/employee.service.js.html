@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">79.9% </span>
+                <span class="strong">80.17% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>175/219</span>
+                <span class='fraction'>182/227</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">81.08% </span>
+                <span class="strong">81.34% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>150/185</span>
+                <span class='fraction'>157/193</span>
             </div>
         
             
@@ -61,7 +61,7 @@
             </div>
         </template>
     </div>
-    <div class='status-line medium'></div>
+    <div class='status-line high'></div>
     <pre><table class="coverage">
 <tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
 <a name='L2'></a><a href='#L2'>2</a>
@@ -921,7 +921,22 @@
 <a name='L856'></a><a href='#L856'>856</a>
 <a name='L857'></a><a href='#L857'>857</a>
 <a name='L858'></a><a href='#L858'>858</a>
-<a name='L859'></a><a href='#L859'>859</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L859'></a><a href='#L859'>859</a>
+<a name='L860'></a><a href='#L860'>860</a>
+<a name='L861'></a><a href='#L861'>861</a>
+<a name='L862'></a><a href='#L862'>862</a>
+<a name='L863'></a><a href='#L863'>863</a>
+<a name='L864'></a><a href='#L864'>864</a>
+<a name='L865'></a><a href='#L865'>865</a>
+<a name='L866'></a><a href='#L866'>866</a>
+<a name='L867'></a><a href='#L867'>867</a>
+<a name='L868'></a><a href='#L868'>868</a>
+<a name='L869'></a><a href='#L869'>869</a>
+<a name='L870'></a><a href='#L870'>870</a>
+<a name='L871'></a><a href='#L871'>871</a>
+<a name='L872'></a><a href='#L872'>872</a>
+<a name='L873'></a><a href='#L873'>873</a>
+<a name='L874'></a><a href='#L874'>874</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -938,6 +953,7 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -970,6 +986,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1113,12 +1135,19 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">2x</span>
@@ -1136,8 +1165,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1795,7 +1825,8 @@ const {
   EMPLOYEE_STATUS,
 } = require('../../../shared/constants');
 const { getPagination, buildPaginationMeta } = require('../../../middleware/validate');
-&nbsp;
+// Auto-initialize leave balances for new employee
+const { initializeLeaveBalances } = require('../../leave/services/leave.service');
 // ─── Employee CRUD ────────────────────────────────────────────────────────────
 &nbsp;
 async function listEmployees(query) {
@@ -1837,8 +1868,14 @@ async function listEmployees(query) {
         EmployeeID: true,
         EmployeeCode: true,
         FullName: true,
+        FirstName: true,     // 👈 Add this
+        LastName: true,      // 👈 Add this
         Email: true,
         Phone: true,
+        Gender: true,        // 👈 Add this
+  DateOfBirth: true,   // 👈 Add this
+  Nationality: true,   // 👈 Add this
+  MaritalStatus: true,
         PhotoURL: true,
         EmploymentType: true,
         CurrentStatus: true,
@@ -1970,13 +2007,20 @@ async function createEmployee(data, createdByAdminId) {
     },
   });
 &nbsp;
+const currentYear = new Date().getFullYear();
+try {
+  await initializeLeaveBalances(employee.EmployeeID, currentYear);
+} catch (err) {
+<span class="cstat-no" title="statement not covered" >  console.error(`Leave balance init failed for ${employee.EmployeeCode}:`, err.message);</span>
+}
   return employee;
 }
 &nbsp;
 async function updateEmployee(employeeId, data, updatedById, ipAddress) {
+  console.log('🔴 RAW req.body RECEIVED IN SERVICE:', JSON.stringify(data));
   const employee = await prisma.employee.findUnique({ where: { EmployeeID: employeeId } });
   if (!employee) throw new AppError('Employee not found.', 404, 'NOT_FOUND');
-&nbsp;
+console.log("DATA RECEIVED:", data);
   const updatedData = { ...data };
   if (data.FirstName || data.LastName) {
     updatedData.FullName = `${data.FirstName || employee.FirstName} ${data.LastName || employee.LastName}`;
@@ -1994,8 +2038,9 @@ async function updateEmployee(employeeId, data, updatedById, ipAddress) {
       NewValue: String(data[k]),
       IPAddress: ipAddress,
     }));
-&nbsp;
+console.log('🟣 updatedData GOING INTO PRISMA:', JSON.stringify(updatedData));
   const [updated] = await prisma.$transaction([
+&nbsp;
     prisma.employee.update({
       where: { EmployeeID: employeeId },
       data: updatedData,
@@ -2635,7 +2680,7 @@ async function <span class="fstat-no" title="function not covered" >updateEmerge
 // ⚠️ IMPORTANT: ADD THESE TO YOUR module.exports AT THE BOTTOM!
 // assignEmployeeRole, getFieldVisibility, updateFieldVisibility
 module.exports = {
-  listEmployees,updateProfilePhoto,updateEmergencyContact,updateFieldVisibility,updateFieldVisibility, assignEmployeeRole,getEmployeeForPdf,getProfileCompleteness, getTeamPendingChangeRequests, sendCompletenessReminder, getDocuments, addDocumentRecord, deleteDocument,getAllPendingChangeRequests,
+  listEmployees,updateProfilePhoto,updateEmergencyContact,getFieldVisibility,updateFieldVisibility, assignEmployeeRole,getEmployeeForPdf,getProfileCompleteness, getTeamPendingChangeRequests, sendCompletenessReminder, getDocuments, addDocumentRecord, deleteDocument,getAllPendingChangeRequests,
   getEmployeeById,addEmployeeNote,getEmployeeNotes,getEmploymentTimeline,getMyTeam,getAllPendingChangeRequests, getEmployeeProfile, createEmployee, updateEmployee, getEmergencyContacts, addEmergencyContact, deleteEmergencyContact, getSkills, addSkill, deleteSkill, terminateEmployee, reactivateEmployee, submitChangeRequest, listChangeRequests, reviewChangeRequest, getAuditLog, getOrgChart, listDepartments, createDepartment, updateDepartment, listPositions, createPosition, getSalaryHistory, createSalaryRecord, listWorkLocations, getMyNotifications, markNotificationsRead,
 };</pre></td></tr></table></pre>
 
@@ -2644,7 +2689,7 @@ module.exports = {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-02T20:34:42.658Z
+                at 2026-06-11T19:38:16.364Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>
